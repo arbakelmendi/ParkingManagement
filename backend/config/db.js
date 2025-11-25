@@ -1,32 +1,22 @@
-const { Pool } = require("pg");
+const sql = require("mssql");
 
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 5432,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
-
-// Retry connection
-async function connectWithRetry(retries = 5) {
-  while (retries) {
-    try {
-      await pool.connect();
-      console.log("✅ PostgreSQL Connected");
-      return;
-    } catch (err) {
-      console.log("❌ DB Connection Failed. Retrying...");
-      retries--;
-      await new Promise(res => setTimeout(res, 2000));
-    }
+const config = {
+  user: "sa",                              // username i SQL Server
+  password: "YOUR_PASSWORD",               // password i SQL Server
+  server: "localhost",                     // zakonisht localhost
+  database: "parking_management",          // emri i databazës
+  options: {
+    trustServerCertificate: true           // e lejon certifikatën lokale
   }
-  process.exit(1);
+};
+
+async function connectDB() {
+  try {
+    await sql.connect(config);
+    console.log("Connected to MSSQL!");
+  } catch (err) {
+    console.error("Database connection failed:", err);
+  }
 }
 
-connectWithRetry();
-
-module.exports = pool;
+module.exports = { sql, connectDB };
