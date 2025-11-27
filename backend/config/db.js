@@ -1,22 +1,31 @@
+// backend/config/db.js
 const sql = require("mssql");
 
 const config = {
-  user: "sa",                              // username i SQL Server
-  password: "YOUR_PASSWORD",               // password i SQL Server
-  server: "localhost",                     // zakonisht localhost
-  database: "parking_management",          // emri i databazës
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  server: process.env.DB_SERVER,
+  port: Number(process.env.DB_PORT),
   options: {
-    trustServerCertificate: true           // e lejon certifikatën lokale
-  }
+    encrypt: false,            // se jemi lokal
+    trustServerCertificate: true,
+  },
 };
 
-async function connectDB() {
-  try {
-    await sql.connect(config);
-    console.log("Connected to MSSQL!");
-  } catch (err) {
-    console.error("Database connection failed:", err);
-  }
-}
+// krijo connection pool
+const pool = new sql.ConnectionPool(config);
+const poolConnect = pool
+  .connect()
+  .then(() => {
+    console.log("✅ Database connected");
+  })
+  .catch((err) => {
+    console.error("❌ Database connection failed:", err);
+  });
 
-module.exports = { sql, connectDB };
+module.exports = {
+  sql,
+  pool,
+  poolConnect,
+};

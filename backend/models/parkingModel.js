@@ -1,36 +1,76 @@
-const db = require("../config/db");
+// backend/models/parkingModel.js
+const { sql, pool, poolConnect } = require("../config/db");
 
 const Parking = {
   getAll: async () => {
-    const result = await db.query("SELECT * FROM parkings ORDER BY id ASC");
-    return result.rows;
+    await poolConnect; 
+    //get all parking attributes
+    const result = await pool.request().query(`
+      SELECT Id, Name, Capacity, Occupied
+      FROM Parkings
+      ORDER BY Id ASC
+    `);
+    return result.recordset;
   },
 
   getById: async (id) => {
-    const result = await db.query("SELECT * FROM parkings WHERE id = $1", [id]);
-    return result.rows[0];
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .query(`
+        SELECT Id, Name, Capacity, Occupied
+        FROM Parkings
+        WHERE Id = @Id
+      `);
+    return result.recordset[0] || null;
   },
 
   create: async (data) => {
-    const result = await db.query(
-      "INSERT INTO parkings (name, capacity, occupied) VALUES ($1,$2,$3) RETURNING *",
-      [data.name, data.capacity, data.occupied]
-    );
-    return result.rows[0];
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Name", sql.NVarChar(100), data.name)
+      .input("Capacity", sql.Int, data.capacity)
+      .input("Occupied", sql.Int, data.occupied)
+      .query(`
+        INSERT INTO Parkings (Name, Capacity, Occupied)
+        OUTPUT INSERTED.*
+        VALUES (@Name, @Capacity, @Occupied)
+      `);
+    return result.recordset[0];
   },
 
   update: async (id, data) => {
-    const result = await db.query(
-      "UPDATE parkings SET name=$1, capacity=$2, occupied=$3 WHERE id=$4 RETURNING *",
-      [data.name, data.capacity, data.occupied, id]
-    );
-    return result.rows[0];
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .input("Name", sql.NVarChar(100), data.name)
+      .input("Capacity", sql.Int, data.capacity)
+      .input("Occupied", sql.Int, data.occupied)
+      .query(`
+        UPDATE Parkings
+        SET Name = @Name,
+            Capacity = @Capacity,
+            Occupied = @Occupied
+        OUTPUT INSERTED.*
+        WHERE Id = @Id
+      `);
+    return result.recordset[0];
   },
 
   delete: async (id) => {
-    await db.query("DELETE FROM parkings WHERE id=$1", [id]);
+    await poolConnect;
+    await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .query(`
+        DELETE FROM Parkings
+        WHERE Id = @Id
+      `);
     return true;
-  }
+  },
 };
 
 module.exports = Parking;
