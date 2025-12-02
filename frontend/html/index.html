@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Parking Management</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Parking Management System</h1>
+
+<div class="container">
+
+    <!-- Parking Spots -->
+    <section>
+        <h2>Parking Spots</h2>
+        <button onclick="loadSpots()">Load Spots</button>
+        <table id="spotsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Spot Number</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
+    <!-- Reservations -->
+    <section>
+        <h2>Reservations</h2>
+        <button onclick="loadReservations()">Load Reservations</button>
+
+        <table id="reservationsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Spot</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Cancel</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
+    <!-- New Reservation -->
+    <section>
+        <h2>Create Reservation</h2>
+
+        <label>User ID:</label>
+        <input type="number" id="userId"><br>
+
+        <label>Spot ID:</label>
+        <input type="number" id="spotId"><br>
+
+        <label>Start Time:</label>
+        <input type="datetime-local" id="startTime"><br>
+
+        <label>End Time:</label>
+        <input type="datetime-local" id="endTime"><br>
+
+        <button onclick="createReservation()">Create Reservation</button>
+
+        <p id="message"></p>
+    </section>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
