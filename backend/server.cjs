@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 require("dotenv").config(); //to_do understand env variables
+const cors = require("cors");
 
 const parkingRoutes = require("./routes/parkingRoutes");
 const { poolConnect } = require("./config/db");
@@ -8,7 +9,7 @@ const reservationRoutes = require("./routes/reservationRoutes");
 const spotRoutes = require("./routes/spotRoutes");
 const userRoutes = require("./routes/userRoutes");
 
-
+app.use(cors());
 app.use(express.json());
 //kur useri thirr /api/parkings shko tek ./routes/parkingRoutes
 app.use("/api/parkings", parkingRoutes);
