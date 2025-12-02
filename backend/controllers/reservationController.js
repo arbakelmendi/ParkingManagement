@@ -16,7 +16,7 @@ async function getAllReservations(req, res) {
 async function getReservation(req, res) {
   try {
     const data = await Reservation.getById(req.params.id);
-    if (!data) return res.status(404).json({ message: "Not Found" });
+    if (!data) return res.status(404).json({ message: "Reservation not found" });
     res.json(data);
   } catch (err) {
     console.error("getReservation error:", err);
@@ -31,7 +31,8 @@ async function createReservation(req, res) {
     res.status(201).json(created);
   } catch (err) {
     console.error("createReservation error:", err);
-    res.status(500).json({ error: "Error creating reservation" });
+    // këto janë më shumë gabime të logjikës së biznesit, jo error serveri
+    res.status(400).json({ error: err.message });
   }
 }
 
@@ -39,19 +40,20 @@ async function createReservation(req, res) {
 async function updateReservation(req, res) {
   try {
     const updated = await Reservation.update(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ message: "Not Found" });
+    if (!updated) return res.status(404).json({ message: "Reservation not found" });
     res.json(updated);
   } catch (err) {
     console.error("updateReservation error:", err);
-    res.status(500).json({ error: "Error updating reservation" });
+    res.status(400).json({ error: err.message });
   }
 }
 
 // DELETE /api/reservations/:id
 async function deleteReservation(req, res) {
   try {
-    await Reservation.delete(req.params.id);
-    res.json({ message: "Deleted successfully" });
+    const ok = await Reservation.delete(req.params.id);
+    if (!ok) return res.status(404).json({ message: "Reservation not found" });
+    res.json({ message: "Reservation deleted and spot freed." });
   } catch (err) {
     console.error("deleteReservation error:", err);
     res.status(500).json({ error: "Error deleting reservation" });
