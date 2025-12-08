@@ -70,10 +70,12 @@ require("dotenv").config();
 const { poolConnect } = require("./config/db");
 
 // ROUTES
+const { producer } = require("./config/kafka");
 const parkingRoutes = require("./routes/parkingRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const spotRoutes = require("./routes/spotRoutes");
 const userRoutes = require("./routes/userRoutes");
+
 
 const app = express();
 
@@ -120,21 +122,39 @@ app.get("/test-db", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-// NISE SERVERIN PA 'await' – vetëm log për DB
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
 
-  poolConnect
-    .then(() => {
-      console.log("✅ Database connected");
-    })
-    .catch((err) => {
-      console.error("❌ Database connection failed:", err);
-      // këtu VETËM LOGOJMË, nuk e ndalim serverin
-    });
+  // lidhu me Kafka producer
+  try {
+    await producer.connect();
+    console.log("✅Kafka producer connected");
+  } catch (err) {
+    console.error("❌Kafka producer failed to connect:", err);
+  }
 });
+  
+app.get("/api/test-kafka", async (req, res) => {
+  try {
+    const message = {
+      type: "TestMessage",
+      text: "Hello from ParkingManagement!",
+      timestamp: new Date().toISOString(),
+    };
 
+    await producer.send({
+      topic: "parking-events",
+      messages: [{ value: JSON.stringify(message) }],
+    });
 
+    console.log("📤Sent test message to Kafka:", message);
+
+    res.json({ ok: true, sent: message });
+  } catch (err) {
+    console.error("Error sending test Kafka message:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 
 
