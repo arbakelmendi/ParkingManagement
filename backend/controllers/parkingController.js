@@ -1,5 +1,6 @@
 // backend/controllers/parkingController.js
 const Parking = require("../models/parkingModel");
+const { producer } = require("../config/kafka"); // ✅ KAFKA
 
 // GET /api/parkings
 async function getAllParkings(req, res) {
@@ -28,6 +29,27 @@ async function getParking(req, res) {
 async function createParking(req, res) {
   try {
     const created = await Parking.create(req.body);
+
+    // ✅ Dërgo event në Kafka
+    const eventPayload = {
+      type: "ParkingCreated",
+      parkingId: created.id,        // ose emri i kolonës që kthen modeli yt
+      name: created.name,
+      location: created.location,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await producer.send({
+        topic: "parking-events",
+        messages: [{ value: JSON.stringify(eventPayload) }],
+      });
+      console.log("📤 Kafka ParkingCreated:", eventPayload);
+    } catch (kafkaErr) {
+      console.error("Kafka error (ParkingCreated):", kafkaErr);
+      // nuk e prishim request-in, veç e log-ojmë
+    }
+
     res.status(201).json(created);
   } catch (err) {
     console.error("createParking error:", err);
@@ -40,6 +62,25 @@ async function updateParking(req, res) {
   try {
     const updated = await Parking.update(req.params.id, req.body);
     if (!updated) return res.status(404).json({ message: "Not Found" });
+
+    // ✅ Event për update
+    const eventPayload = {
+      type: "ParkingUpdated",
+      parkingId: updated.id || req.params.id,
+      data: updated,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await producer.send({
+        topic: "parking-events",
+        messages: [{ value: JSON.stringify(eventPayload) }],
+      });
+      console.log("📤 Kafka ParkingUpdated:", eventPayload);
+    } catch (kafkaErr) {
+      console.error("Kafka error (ParkingUpdated):", kafkaErr);
+    }
+
     res.json(updated);
   } catch (err) {
     console.error("updateParking error:", err);
@@ -51,6 +92,24 @@ async function updateParking(req, res) {
 async function deleteParking(req, res) {
   try {
     await Parking.delete(req.params.id);
+
+    // ✅ Event për delete
+    const eventPayload = {
+      type: "ParkingDeleted",
+      parkingId: req.params.id,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await producer.send({
+        topic: "parking-events",
+        messages: [{ value: JSON.stringify(eventPayload) }],
+      });
+      console.log("📤 Kafka ParkingDeleted:", eventPayload);
+    } catch (kafkaErr) {
+      console.error("Kafka error (ParkingDeleted):", kafkaErr);
+    }
+
     res.json({ message: "Deleted successfully" });
   } catch (err) {
     console.error("deleteParking error:", err);
