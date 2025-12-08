@@ -13,6 +13,39 @@ const Parking = {
     return result.recordset;
   },
 
+  // rreth fundit të objektit Parking, para module.exports
+  incrementOccupied: async (parkingId) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, parkingId)
+      .query(`
+        UPDATE Parkings
+        SET Occupied = Occupied + 1
+        OUTPUT INSERTED.*
+        WHERE Id = @Id
+     `);
+    return result.recordset[0];
+  },
+
+  decrementOccupied: async (parkingId) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, parkingId)
+      .query(`
+        UPDATE Parkings
+        SET Occupied = CASE 
+                         WHEN Occupied > 0 THEN Occupied - 1 
+                         ELSE 0 
+                       END
+        OUTPUT INSERTED.*
+        WHERE Id = @Id
+      `);
+    return result.recordset[0];
+  },
+
+
   getById: async (id) => {
     await poolConnect;
     const result = await pool

@@ -18,7 +18,7 @@ const Spot = {
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT id, spot_number, status
+        SELECT id, spot_number, status, IsOccupied
         FROM ParkingSpots
         WHERE id = @Id
       `);
@@ -67,6 +67,21 @@ const Spot = {
       `);
     return true;
   },
+
+  setOccupied: async (id, isOccupied) => {
+      await poolConnect;
+      const result = await pool
+        .request()
+        .input("Id", sql.Int, id)
+        .input("IsOccupied", sql.Bit, isOccupied ? 1 : 0)
+        .query(`
+          UPDATE ParkingSpots
+          SET IsOccupied = @IsOccupied
+          OUTPUT INSERTED.*
+          WHERE Id = @Id
+        `);
+      return result.recordset[0];
+    },
 };
 
 module.exports = Spot;

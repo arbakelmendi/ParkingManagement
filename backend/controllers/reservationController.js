@@ -1,6 +1,8 @@
 // backend/controllers/reservationController.js
 const Reservation = require("../models/reservationModel");
-const { producer } = require("../config/kafka"); // ✅ KAFKA
+const Parking = require("../models/parkingModel");
+const Spot = require("../models/spotModel");
+const { producer } = require("../config/kafka");
 
 // GET /api/reservations
 async function getAllReservations(req, res) {
@@ -28,17 +30,55 @@ async function getReservation(req, res) {
 // POST /api/reservations
 async function createReservation(req, res) {
   try {
-    const created = await Reservation.create(req.body);
+    const { parkingId, spotId, userId, startTime, endTime } = req.body;
 
-    // ✅ Event: ReservationCreated
+    // 1) kontrollo spot-in
+    const spot = await Spot.getById(spotId);
+    if (!spot)
+      return res.status(404).json({ message: "Parking spot not found" });
+
+    // nëse nga tabela e spot-eve nuk vjen parkingId, përdor parkingId nga req.body
+    const effectiveParkingId = spot.ParkingId || parkingId;
+
+    // 2) kontrollo kapasitetin
+    const parking = await Parking.getById(effectiveParkingId);
+    if (!parking)
+      return res.status(404).json({ message: "Parking not found" });
+
+    if (parking.Occupied >= parking.Capacity) {
+      return res
+        .status(400)
+        .json({ message: "No free spots available in this parking" });
+    }
+
+    if (spot.IsOccupied) {
+      return res
+        .status(400)
+        .json({ message: "This parking spot is already occupied" });
+    }
+
+    // 3) krijo rezervimin
+    const created = await Reservation.create({
+      parkingId: effectiveParkingId,
+      spotId,
+      userId,
+      startTime,
+      endTime,
+    });
+
+    // 4) update logjikës së parkingut & spot-it
+    await Parking.incrementOccupied(effectiveParkingId);
+    await Spot.setOccupied(spotId, true);
+
+    // 5) dërgo event në Kafka
     const eventPayload = {
       type: "ReservationCreated",
-      reservationId: created.id,  // ose emrin real të kolonës
-      parkingId: created.parkingId,
-      spotId: created.spotId,
-      userId: created.userId,
-      startTime: created.startTime,
-      endTime: created.endTime,
+      reservationId: created.Id,
+      parkingId: effectiveParkingId,
+      spotId,
+      userId,
+      startTime,
+      endTime,
       timestamp: new Date().toISOString(),
     };
 
@@ -55,7 +95,6 @@ async function createReservation(req, res) {
     res.status(201).json(created);
   } catch (err) {
     console.error("createReservation error:", err);
-    // këto janë më shumë gabime të logjikës së biznesit, jo error serveri
     res.status(400).json({ error: err.message });
   }
 }
@@ -63,13 +102,15 @@ async function createReservation(req, res) {
 // PUT /api/reservations/:id
 async function updateReservation(req, res) {
   try {
-    const updated = await Reservation.update(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ message: "Reservation not found" });
+    const existing = await Reservation.getById(req.params.id);
+    if (!existing)
+      return res.status(404).json({ message: "Reservation not found" });
 
-    // ✅ Event: ReservationUpdated
+    const updated = await Reservation.update(req.params.id, req.body);
+
     const eventPayload = {
       type: "ReservationUpdated",
-      reservationId: updated.id || req.params.id,
+      reservationId: updated.Id || req.params.id,
       data: updated,
       timestamp: new Date().toISOString(),
     };
@@ -94,13 +135,30 @@ async function updateReservation(req, res) {
 // DELETE /api/reservations/:id
 async function deleteReservation(req, res) {
   try {
-    const ok = await Reservation.delete(req.params.id);
-    if (!ok) return res.status(404).json({ message: "Reservation not found" });
+    const existing = await Reservation.getById(req.params.id);
+    if (!existing)
+      return res.status(404).json({ message: "Reservation not found" });
 
-    // ✅ Event: ReservationDeleted
+    const { ParkingId, SpotId } = existing; // ndrysho emrat nëse janë ndryshe
+
+    // 1) fshije rezervimin
+    const ok = await Reservation.delete(req.params.id);
+    if (!ok) return res.status(500).json({ message: "Error deleting reservation" });
+
+    // 2) ul Occupied dhe liro spot-in
+    if (ParkingId) {
+      await Parking.decrementOccupied(ParkingId);
+    }
+    if (SpotId) {
+      await Spot.setOccupied(SpotId, false);
+    }
+
+    // 3) event Kafka
     const eventPayload = {
       type: "ReservationDeleted",
       reservationId: req.params.id,
+      parkingId: ParkingId,
+      spotId: SpotId,
       timestamp: new Date().toISOString(),
     };
 
