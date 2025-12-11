@@ -32,15 +32,15 @@ async function createReservation(req, res) {
   try {
     const { parkingId, spotId, userId, startTime, endTime } = req.body;
 
-    // 1) kontrollo spot-in
+    // 1) kontrollim spot-in
     const spot = await Spot.getById(spotId);
     if (!spot)
       return res.status(404).json({ message: "Parking spot not found" });
 
-    // nëse nga tabela e spot-eve nuk vjen parkingId, përdor parkingId nga req.body
+    // nese nga tabela e spot-eve nuk vjen parkingId, perdor parkingId nga req.body
     const effectiveParkingId = spot.ParkingId || parkingId;
 
-    // 2) kontrollo kapasitetin
+    // 2) kontrollim kapacitetin
     const parking = await Parking.getById(effectiveParkingId);
     if (!parking)
       return res.status(404).json({ message: "Parking not found" });
@@ -57,7 +57,7 @@ async function createReservation(req, res) {
         .json({ message: "This parking spot is already occupied" });
     }
 
-    // 3) krijo rezervimin
+    // 3) krijimi i rezervimit
     const created = await Reservation.create({
       parkingId: effectiveParkingId,
       spotId,
@@ -66,11 +66,11 @@ async function createReservation(req, res) {
       endTime,
     });
 
-    // 4) update logjikës së parkingut & spot-it
+    // 4) update logjikes se parkingut & spot-it
     await Parking.incrementOccupied(effectiveParkingId);
     await Spot.setOccupied(spotId, true);
 
-    // 5) dërgo event në Kafka
+    // 5) dergimi i eventeve ne Kafka
     const eventPayload = {
       type: "ReservationCreated",
       reservationId: created.Id,
@@ -87,7 +87,7 @@ async function createReservation(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ReservationCreated:", eventPayload);
+      console.log("Kafka ReservationCreated:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ReservationCreated):", kafkaErr);
     }
@@ -120,7 +120,7 @@ async function updateReservation(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ReservationUpdated:", eventPayload);
+      console.log("Kafka ReservationUpdated:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ReservationUpdated):", kafkaErr);
     }
@@ -139,9 +139,9 @@ async function deleteReservation(req, res) {
     if (!existing)
       return res.status(404).json({ message: "Reservation not found" });
 
-    const { ParkingId, SpotId } = existing; // ndrysho emrat nëse janë ndryshe
+    const { ParkingId, SpotId } = existing;
 
-    // 1) fshije rezervimin
+    // 1) fshirja e rezervimit
     const ok = await Reservation.delete(req.params.id);
     if (!ok) return res.status(500).json({ message: "Error deleting reservation" });
 
@@ -167,7 +167,7 @@ async function deleteReservation(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ReservationDeleted:", eventPayload);
+      console.log("Kafka ReservationDeleted:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ReservationDeleted):", kafkaErr);
     }

@@ -13,7 +13,7 @@ const Parking = {
     return result.recordset;
   },
 
-  // rreth fundit të objektit Parking, para module.exports
+  
   incrementOccupied: async (parkingId) => {
     await poolConnect;
     const result = await pool

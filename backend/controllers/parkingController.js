@@ -1,6 +1,6 @@
 // backend/controllers/parkingController.js
 const Parking = require("../models/parkingModel");
-const { producer } = require("../config/kafka"); // ✅ KAFKA
+const { producer } = require("../config/kafka"); //KAFKA
 
 // GET /api/parkings
 async function getAllParkings(req, res) {
@@ -30,10 +30,10 @@ async function createParking(req, res) {
   try {
     const created = await Parking.create(req.body);
 
-    // ✅ Dërgo event në Kafka
+    //Dergimi i eventeve ne Kafka
     const eventPayload = {
       type: "ParkingCreated",
-      parkingId: created.id,        // ose emri i kolonës që kthen modeli yt
+      parkingId: created.id,   
       name: created.name,
       location: created.location,
       timestamp: new Date().toISOString(),
@@ -44,10 +44,10 @@ async function createParking(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ParkingCreated:", eventPayload);
+      console.log("Kafka ParkingCreated:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ParkingCreated):", kafkaErr);
-      // nuk e prishim request-in, veç e log-ojmë
+      // nuk e prishim request-in, veç e log-ojme
     }
 
     res.status(201).json(created);
@@ -63,7 +63,7 @@ async function updateParking(req, res) {
     const updated = await Parking.update(req.params.id, req.body);
     if (!updated) return res.status(404).json({ message: "Not Found" });
 
-    // ✅ Event për update
+    //Eventet per update
     const eventPayload = {
       type: "ParkingUpdated",
       parkingId: updated.id || req.params.id,
@@ -76,7 +76,7 @@ async function updateParking(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ParkingUpdated:", eventPayload);
+      console.log("Kafka ParkingUpdated:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ParkingUpdated):", kafkaErr);
     }
@@ -93,7 +93,7 @@ async function deleteParking(req, res) {
   try {
     await Parking.delete(req.params.id);
 
-    // ✅ Event për delete
+    //Eventet per delete
     const eventPayload = {
       type: "ParkingDeleted",
       parkingId: req.params.id,
@@ -105,7 +105,7 @@ async function deleteParking(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("📤 Kafka ParkingDeleted:", eventPayload);
+      console.log("Kafka ParkingDeleted:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ParkingDeleted):", kafkaErr);
     }

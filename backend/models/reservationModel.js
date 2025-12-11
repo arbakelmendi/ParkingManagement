@@ -50,7 +50,7 @@ const Reservation = {
 
     const { user_id, spot_id, start_time, end_time } = data;
 
-    // ✅ Validime bazike në backend
+    //Validime ne backend
     if (!user_id || !spot_id || !start_time || !end_time) {
       throw new Error("Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme.");
     }
@@ -76,7 +76,7 @@ const Reservation = {
     try {
       await tx.begin();
 
-      // 1️⃣ Verifiko user-in
+      //Verifikimi i user-it
       let request = new sql.Request(tx);
       let userResult = await request
         .input("user_id", sql.Int, user_id)
@@ -86,7 +86,7 @@ const Reservation = {
         throw new Error("Përdoruesi nuk ekziston.");
       }
 
-      // 2️⃣ Verifiko spot-in
+      //Verifikimi i spot-it
       request = new sql.Request(tx);
       let spotResult = await request
         .input("spot_id", sql.Int, spot_id)
@@ -101,7 +101,7 @@ const Reservation = {
         throw new Error("Ky vend parkimi është i zënë.");
       }
 
-      // 3️⃣ Mos lejo mbivendosje për të njëjtin spot
+      //Mos lejimi i mbivendosjes per te njejtin spot
       request = new sql.Request(tx);
       let overlapResult = await request
         .input("spot_id", sql.Int, spot_id)
@@ -118,7 +118,7 @@ const Reservation = {
         throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
       }
 
-      // 4️⃣ Mos lejo më shumë se 1 rezervim aktiv për user-in
+      //Mos lejimi i me shume se 1 rezervim aktiv per user-in
       request = new sql.Request(tx);
       let activeResult = await request
         .input("user_id", sql.Int, user_id)
@@ -130,11 +130,11 @@ const Reservation = {
         `);
 
       if (activeResult.recordset[0].cnt > 1) {
-        // nëse don më strikte, vendos > 0
+        // nese e bojme ma strikte e bojme > 0
         throw new Error("Përdoruesi ka tashmë rezervime aktive.");
       }
 
-      // 5️⃣ Krijo rezervimin
+      //Krijimi i rezervimit
       request = new sql.Request(tx);
       const insertResult = await request
         .input("user_id", sql.Int, user_id)
@@ -149,7 +149,7 @@ const Reservation = {
 
       const created = insertResult.recordset[0];
 
-      // 6️⃣ Përditëso statusin e vendit në 'occupied'
+      //Perditesimi i statusit ne vendin 'occupied'
       request = new sql.Request(tx);
       await request
         .input("spot_id", sql.Int, spot_id)
@@ -167,7 +167,7 @@ const Reservation = {
     }
   },
 
-  // PUT /api/reservations/:id – (mund ta lëmë më të thjeshtë ose të sforcojmë rregulla njësoj)
+  // PUT /api/reservations/:id
   update: async (id, data) => {
     await poolConnect;
 
@@ -202,7 +202,7 @@ const Reservation = {
 
       const reservation = resResult.recordset[0];
 
-      // kontrollo mbivendosjet për po të njejtin spot
+      // kontrollo mbivendosjet per po te njejtin spot
       request = new sql.Request(tx);
       let overlapResult = await request
         .input("spot_id", sql.Int, reservation.spot_id)
@@ -221,7 +221,7 @@ const Reservation = {
         throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
       }
 
-      // bëj update
+      // bej update
       request = new sql.Request(tx);
       const updateResult = await request
         .input("Id", sql.Int, id)
@@ -253,7 +253,7 @@ const Reservation = {
 
       let request = new sql.Request(tx);
 
-      // gjej spot_id për këtë rezervim
+      // gjej spot_id per kete rezervim
       const resResult = await request
         .input("Id", sql.Int, id)
         .query(`SELECT spot_id FROM reservations WHERE id = @Id`);
@@ -271,7 +271,7 @@ const Reservation = {
         .input("Id", sql.Int, id)
         .query(`DELETE FROM reservations WHERE id = @Id`);
 
-      // lëroje vendin
+      // liroje vendin
       request = new sql.Request(tx);
       await request
         .input("spot_id", sql.Int, spotId)

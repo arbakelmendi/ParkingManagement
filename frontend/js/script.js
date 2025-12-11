@@ -1,8 +1,7 @@
 const API = "http://localhost:3000/api";
 
-// ------------------------
+
 // Load Parking Spots
-// ------------------------
 async function loadSpots() {
     const res = await fetch(`${API}/parking-spots`);
     const data = await res.json();
@@ -21,9 +20,8 @@ async function loadSpots() {
     });
 }
 
-// ------------------------
+
 // Load Reservations
-// ------------------------
 async function loadReservations() {
     const res = await fetch(`${API}/reservations`);
     const data = await res.json();
@@ -45,9 +43,8 @@ async function loadReservations() {
     });
 }
 
-// ------------------------
+
 // Create Reservation
-// ------------------------
 async function createReservation() {
     const user_id = document.getElementById("userId").value;
     const spot_id = document.getElementById("spotId").value;
@@ -72,9 +69,8 @@ async function createReservation() {
     loadReservations();
 }
 
-// ------------------------
+
 // Cancel Reservation
-// ------------------------
 async function cancelReservation(id) {
     await fetch(`${API}/reservations/${id}`, {
         method: "DELETE",

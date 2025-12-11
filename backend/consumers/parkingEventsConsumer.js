@@ -6,16 +6,16 @@ async function startConsumer() {
 
   await consumer.subscribe({
     topic: "parking-events",
-    fromBeginning: true, // ose false nëse s'don mesazhet e vjetra
+    fromBeginning: true, // ose false nese s'don mesazhet e vjetra
   });
 
-  console.log("🚀Kafka Consumer is running and listening on 'parking-events'...");
+  console.log("Kafka Consumer is running and listening on 'parking-events'...");
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       const value = message.value.toString();
 
-      console.log("📩Event received from Kafka:");
+      console.log("Event received from Kafka:");
       console.log("   topic     :", topic);
       console.log("   partition :", partition);
       console.log("   offset    :", message.offset);
@@ -26,5 +26,5 @@ async function startConsumer() {
 }
 
 startConsumer().catch((err) => {
-  console.error("❌Kafka consumer error:", err);
+  console.error("Kafka consumer error:", err);
 });

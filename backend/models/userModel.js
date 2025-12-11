@@ -2,7 +2,6 @@
 const { sql, pool, poolConnect } = require("../config/db");
 
 const User = {
-  // SELECT * FROM users
   getAll: async () => {
     await poolConnect;
     const result = await pool.request().query(`
@@ -13,7 +12,7 @@ const User = {
     return result.recordset;
   },
 
-  // SELECT * FROM users WHERE id = @Id
+ 
   getById: async (id) => {
     await poolConnect;
     const result = await pool
@@ -27,14 +26,14 @@ const User = {
     return result.recordset[0] || null;
   },
 
-  // INSERT INTO users (...)
+ 
   create: async (data) => {
     await poolConnect;
     const result = await pool
       .request()
       .input("Name", sql.NVarChar(100), data.name)
       .input("Email", sql.NVarChar(200), data.email)
-      .input("Password", sql.NVarChar(200), data.password) // për projekt le të rri plain text
+      .input("Password", sql.NVarChar(200), data.password)
       .input("Role", sql.NVarChar(50), data.role || "user")
       .query(`
         INSERT INTO users (name, email, password, role)
@@ -44,7 +43,7 @@ const User = {
     return result.recordset[0];
   },
 
-  // UPDATE users SET ... WHERE id = @Id
+  
   update: async (id, data) => {
     await poolConnect;
     const result = await pool
@@ -66,7 +65,7 @@ const User = {
     return result.recordset[0] || null;
   },
 
-  // DELETE FROM users WHERE id = @Id
+ 
   delete: async (id) => {
     await poolConnect;
     await pool

@@ -13,15 +13,15 @@ const config = {
   },
 };
 
-// krijo connection pool
+// krijimi i connection pool
 const pool = new sql.ConnectionPool(config);
 const poolConnect = pool
   .connect()
   .then(() => {
-    console.log("✅ Database connected");
+    console.log("Database connected");
   })
   .catch((err) => {
-    console.error("❌ Database connection failed:", err);
+    console.error("Database connection failed:", err);
   });
 
 module.exports = {
