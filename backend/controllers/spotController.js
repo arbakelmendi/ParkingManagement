@@ -22,7 +22,7 @@ async function getSpot(req, res) {
   }
 }
 
-async function createSpot(req, res) {
+  async function createSpot(req, res) {
   try {
     const created = await Spot.create(req.body);
     res.status(201).json(created);
@@ -31,6 +31,7 @@ async function createSpot(req, res) {
     res.status(500).json({ error: "Error creating spot" });
   }
 }
+
 
 async function updateSpot(req, res) {
   try {

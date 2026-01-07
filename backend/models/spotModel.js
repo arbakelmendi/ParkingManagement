@@ -26,19 +26,19 @@ const Spot = {
   },
 
   create: async (data) => {
-    await poolConnect;
-    const result = await pool
-      .request()
-      .input("SpotNumber", sql.Int, data.spot_number)
-      .input("Status", sql.NVarChar(20), data.status || "free")
-      .input("ParkingId", sql.Int, data.parkingId || null)
-      .query(`
-        INSERT INTO ParkingSpots (spot_number, status, ParkingId)
-        OUTPUT INSERTED.*
-        VALUES (@SpotNumber, @Status, @ParkingId)
-      `);
-    return result.recordset[0];
-  },
+  await poolConnect;
+  const result = await pool
+    .request()
+    .input("SpotNumber", sql.Int, data.spot_number)
+    .input("Status", sql.NVarChar(20), data.status || "free")
+    .input("ParkingId", sql.Int, data.ParkingId) // ✅ FK
+    .query(`
+      INSERT INTO ParkingSpots (spot_number, status, ParkingId)
+      OUTPUT INSERTED.*
+      VALUES (@SpotNumber, @Status, @ParkingId)
+    `);
+  return result.recordset[0];
+},
 
   update: async (id, data) => {
     await poolConnect;

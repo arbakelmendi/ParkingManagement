@@ -2,48 +2,62 @@
 const { sql, pool, poolConnect } = require("../config/db");
 
 const User = {
+  // ✅ mos e kthe password-in
   getAll: async () => {
     await poolConnect;
     const result = await pool.request().query(`
-      SELECT id, name, email, password, role
+      SELECT id, name, email, role
       FROM users
       ORDER BY id ASC
     `);
     return result.recordset;
   },
 
- 
+  // ✅ mos e kthe password-in
   getById: async (id) => {
     await poolConnect;
     const result = await pool
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT id, name, email, password, role
+        SELECT id, name, email, role
         FROM users
         WHERE id = @Id
       `);
     return result.recordset[0] || null;
   },
 
- 
+  // ✅ e përdorim për login
+  findByEmail: async (email) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Email", sql.NVarChar(200), email)
+      .query(`
+        SELECT id, name, email, password, role
+        FROM users
+        WHERE email = @Email
+      `);
+    return result.recordset[0] || null;
+  },
+
+  // ✅ create me passwordHash
   create: async (data) => {
     await poolConnect;
     const result = await pool
       .request()
       .input("Name", sql.NVarChar(100), data.name)
       .input("Email", sql.NVarChar(200), data.email)
-      .input("Password", sql.NVarChar(200), data.password)
+      .input("Password", sql.NVarChar(200), data.password) // passwordHash
       .input("Role", sql.NVarChar(50), data.role || "user")
       .query(`
         INSERT INTO users (name, email, password, role)
-        OUTPUT INSERTED.*
+        OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role
         VALUES (@Name, @Email, @Password, @Role)
       `);
     return result.recordset[0];
   },
 
-  
   update: async (id, data) => {
     await poolConnect;
     const result = await pool
@@ -51,7 +65,7 @@ const User = {
       .input("Id", sql.Int, id)
       .input("Name", sql.NVarChar(100), data.name)
       .input("Email", sql.NVarChar(200), data.email)
-      .input("Password", sql.NVarChar(200), data.password)
+      .input("Password", sql.NVarChar(200), data.password) // hash nëse e ndërron
       .input("Role", sql.NVarChar(50), data.role)
       .query(`
         UPDATE users
@@ -59,22 +73,18 @@ const User = {
             email = @Email,
             password = @Password,
             role = @Role
-        OUTPUT INSERTED.*
+        OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role
         WHERE id = @Id
       `);
     return result.recordset[0] || null;
   },
 
- 
   delete: async (id) => {
     await poolConnect;
     await pool
       .request()
       .input("Id", sql.Int, id)
-      .query(`
-        DELETE FROM users
-        WHERE id = @Id
-      `);
+      .query(`DELETE FROM users WHERE id = @Id`);
     return true;
   },
 };

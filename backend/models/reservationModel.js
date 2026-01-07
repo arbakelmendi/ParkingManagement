@@ -50,11 +50,10 @@ create: async (data) => {
 
   const { user_id, spot_id, start_time, end_time } = data;
 
-  if (!user_id || !spot_id || !start_time || !end_time) {
-    throw new Error(
-      "Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme."
-    );
-  }
+// ✅ user_id vjen nga controller (JWT), prapë e validon por tash s’duhet me mungua
+if (!user_id || !spot_id || !start_time || !end_time) {
+  throw new Error("Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme.");
+}
 
   const start = new Date(start_time);
   const end = new Date(end_time);

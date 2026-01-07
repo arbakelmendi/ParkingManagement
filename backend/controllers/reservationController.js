@@ -30,32 +30,32 @@ async function getReservation(req, res) {
 // POST /api/reservations
 async function createReservation(req, res) {
   try {
-    // ✅ prano snake_case si frontend-i yt
-    const { parkingId, spot_id, user_id, start_time, end_time } = req.body;
+    // ✅ user_id merret nga token
+    const user_id = req.user.id;
+
+    // ✅ vijnë nga body (snake_case)
+    const { parkingId, spot_id, start_time, end_time } = req.body;
+
+    // ✅ validim minimal (mos e kërko user_id nga body)
+    if (!spot_id || !start_time || !end_time) {
+      return res.status(400).json({
+        message: "Të gjitha fushat (spot_id, start_time, end_time) janë të detyrueshme.",
+      });
+    }
 
     // 1) kontrollo spot-in
     const spot = await Spot.getById(spot_id);
     if (!spot) return res.status(404).json({ message: "Parking spot not found" });
 
-    // parkingId efektiv (nga spot ose body)
-    const effectiveParkingId = spot.ParkingId || parkingId;
+    // parkingId efektiv
+    const effectiveParkingId = spot.ParkingId || parkingId || null;
 
-    // 2) kontrollo parking kapacitetin
-    if (effectiveParkingId) {
-      const parking = await Parking.getById(effectiveParkingId);
-      if (!parking) return res.status(404).json({ message: "Parking not found" });
-
-      if (parking.Occupied >= parking.Capacity) {
-        return res.status(400).json({ message: "No free spots available in this parking" });
-      }
-    }
-
-    // 3) kontrollo statusin e spot-it (vetëm status)
+    // 2) kontrollo statusin e spot-it
     if (spot.status !== "free") {
       return res.status(400).json({ message: "This parking spot is already occupied" });
     }
 
-    // 4) krijo rezervimin (snake_case)
+    // 3) krijo rezervimin ✅ DUHET me ia dërgu user_id modelit
     const created = await Reservation.create({
       user_id,
       spot_id,
@@ -63,19 +63,17 @@ async function createReservation(req, res) {
       end_time,
     });
 
-    // 5) update parking occupancy (nëse parking ekziston)
+    // 4) update parking + spot
     if (effectiveParkingId) {
       await Parking.incrementOccupied(effectiveParkingId);
     }
-
-    // 6) sigurohu që spot-i është occupied (nëse s’është bërë)
     await Spot.setStatus(spot_id, "occupied");
 
-    // 7) event Kafka
+    // 5) Kafka event (opsionale)
     const eventPayload = {
       type: "ReservationCreated",
       reservationId: created.id || created.Id,
-      parkingId: effectiveParkingId || null,
+      parkingId: effectiveParkingId,
       spotId: spot_id,
       userId: user_id,
       startTime: start_time,
@@ -88,7 +86,6 @@ async function createReservation(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("Kafka ReservationCreated:", eventPayload);
     } catch (kafkaErr) {
       console.error("Kafka error (ReservationCreated):", kafkaErr);
     }

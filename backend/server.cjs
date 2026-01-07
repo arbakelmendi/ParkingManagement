@@ -45,6 +45,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const { poolConnect } = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
 
 
 const { producer } = require("./config/kafka");
@@ -71,6 +72,7 @@ app.use("/api/parkings", parkingRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/parking-spots", spotRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
 
 
 const frontendPath = path.join(__dirname, "..", "frontend");
