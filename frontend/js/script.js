@@ -32,12 +32,35 @@ async function login() {
 
   loadSpots();
   loadReservations();
+  loadParkings();
 }
 
 function logout() {
   localStorage.removeItem("token");
   document.getElementById("authMsg").innerText = "Logged out";
 }
+
+async function loadParkings() {
+  const res = await fetch(`${API}/parkings`);
+  const data = await res.json();
+
+  const select = document.getElementById("adminParkingSelect");
+  select.innerHTML = "";
+
+  if (!Array.isArray(data)) {
+    console.log("loadParkings response:", data);
+    select.innerHTML = `<option value="">No parkings</option`>;
+    return;
+  }
+
+  data.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.Id ?? p.id; // nese API kthen Id ose id
+    opt.textContent = `${p.Name ?? p.name} (ID: ${p.Id ?? p.id})`;
+    select.appendChild(opt);
+  });
+}
+
 
 // Load Parking Spots (public)
 async function loadSpots() {
@@ -65,13 +88,16 @@ async function loadSpots() {
 
 // ✅ Admin: Create Spot (needs admin token)
 async function createSpot() {
-  const ParkingId = Number(document.getElementById("adminParkingId").value);
+  const ParkingId = Number(document.getElementById("adminParkingSelect").value);
   const spot_number = Number(document.getElementById("adminSpotNumber").value);
   const status = document.getElementById("adminSpotStatus").value;
 
-  if (!ParkingId || !spot_number) {
-    document.getElementById("spotMsg").innerText =
-      "Parking ID dhe Spot Number janë të detyrueshme.";
+  if (!ParkingId) {
+    document.getElementById("spotMsg").innerText = "Zgjedh një parking nga lista.";
+    return;
+  }
+  if (!spot_number) {
+    document.getElementById("spotMsg").innerText = "Spot Number është i detyrueshëm.";
     return;
   }
 
@@ -93,7 +119,7 @@ async function createSpot() {
     return;
   }
 
-  document.getElementById("spotMsg").innerText = `Spot created ✅ (id: ${data.id})`;
+  document.getElementById("spotMsg").innerText = `Spot created ✅ (id: ${data.id ?? data.Id})`;
   loadSpots();
 }
 
@@ -183,3 +209,7 @@ async function cancelReservation(id) {
   loadSpots();
   loadReservations();
 }
+
+// kur hapet faqja
+loadSpots();
+loadParkings();s
