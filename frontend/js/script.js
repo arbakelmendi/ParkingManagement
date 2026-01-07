@@ -79,3 +79,41 @@ async function cancelReservation(id) {
     loadSpots();
     loadReservations();
 }
+
+async function createSpot() {
+  const ParkingId = Number(document.getElementById("adminParkingId").value);
+  const spot_number = Number(document.getElementById("adminSpotNumber").value);
+  const status = document.getElementById("adminSpotStatus").value;
+
+  if (!ParkingId  !spot_number) {
+    document.getElementById("spotMsg").innerText = "ParkingId dhe spot_number janë të detyrueshme.";
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    document.getElementById("spotMsg").innerText = "Duhet të bësh login si admin fillimisht.";
+    return;
+  }
+
+  const res = await fetch(${API}/parking-spots, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: Bearer ${token},
+    },
+    body: JSON.stringify({ ParkingId, spot_number, status }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    document.getElementById("spotMsg").innerText = data.message  data.error || "Error creating spot";
+    console.log("createSpot error:", data);
+    return;
+  }
+
+  document.getElementById("spotMsg").innerText = Spot created (id: ${data.id}) ✅;
+  loadSpots();
+}
+
