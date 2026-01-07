@@ -28,6 +28,28 @@
         </table>
     </section>
 
+    <!-- Admin: Create Spot -->
+<section>
+  <h2>Admin: Create Parking Spot</h2>
+
+  <label>Parking ID:</label>
+  <input type="number" id="adminParkingId" placeholder="1" /><br>
+
+  <label>Spot Number:</label>
+  <input type="number" id="adminSpotNumber" placeholder="200" /><br>
+
+  <label>Status:</label>
+  <select id="adminSpotStatus">
+    <option value="free">free</option>
+    <option value="occupied">occupied</option>
+  </select><br>
+
+  <button onclick="createSpot()">Create Spot</button>
+
+  <p id="spotMsg"></p>
+</section>
+
+
     <!-- Reservations -->
     <section>
         <h2>Reservations</h2>
