@@ -1,43 +1,4 @@
-/*/ backend/server.cjs
-const express = require("express");
-const path = require("path");
-const cors = require("cors");
-const app = express();
-
-require("dotenv").config();
-
-const { poolConnect } = require("./config/db");
-
-
-const parkingRoutes = require("./routes/parkingRoutes");
-const reservationRoutes = require("./routes/reservationRoutes");
-const spotRoutes = require("./routes/spotRoutes");
-const userRoutes = require("./routes/userRoutes");
-
-
-app.use(cors());
-app.use(express.json());
-
-
-app.use("/api/parkings", parkingRoutes);
-app.use("/api/reservations", reservationRoutes);
-app.use("/api/spots", spotRoutes);
-app.use("/api/users", userRoutes);
-
-// test per DB
-app.get("/test-db", async (req, res) => {
-  try {
-    await poolConnect;
-    res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));*/
-
+// backend/server.cjs
 
 const express = require("express");
 const path = require("path");
