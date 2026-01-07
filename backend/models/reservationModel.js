@@ -44,128 +44,129 @@ const Reservation = {
     return result.recordset[0] || null;
   },
 
-  // POST /api/reservations
-  create: async (data) => {
-    await poolConnect;
+// backend/models/reservationModel.js (vetëm create e re)
+create: async (data) => {
+  await poolConnect;
 
-    const { user_id, spot_id, start_time, end_time } = data;
+  const { user_id, spot_id, start_time, end_time } = data;
 
-    //Validime ne backend
-    if (!user_id || !spot_id || !start_time || !end_time) {
-      throw new Error("Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme.");
+  if (!user_id || !spot_id || !start_time || !end_time) {
+    throw new Error(
+      "Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme."
+    );
+  }
+
+  const start = new Date(start_time);
+  const end = new Date(end_time);
+
+  if (isNaN(start) || isNaN(end)) {
+    throw new Error("Formati i datës/ores nuk është i vlefshëm.");
+  }
+
+  if (start >= end) {
+    throw new Error("start_time duhet të jetë më i hershëm se end_time.");
+  }
+
+  const diffHours = (end - start) / (1000 * 60 * 60);
+  if (diffHours > 8) {
+    throw new Error("Rezervimi nuk mund të jetë më i gjatë se 8 orë.");
+  }
+
+  const tx = new sql.Transaction(pool);
+
+  try {
+    await tx.begin();
+
+    // 1) verifiko user
+    let request = new sql.Request(tx);
+    const userResult = await request
+      .input("user_id", sql.Int, user_id)
+      .query(`SELECT id, role FROM users WHERE id = @user_id`);
+
+    if (userResult.recordset.length === 0) {
+      throw new Error("Përdoruesi nuk ekziston.");
     }
 
-    const start = new Date(start_time);
-    const end = new Date(end_time);
+    // 2) verifiko spot
+    request = new sql.Request(tx);
+    const spotResult = await request
+      .input("spot_id", sql.Int, spot_id)
+      .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
 
-    if (isNaN(start) || isNaN(end)) {
-      throw new Error("Formati i datës/ores nuk është i vlefshëm.");
+    if (spotResult.recordset.length === 0) {
+      throw new Error("Parking spot nuk ekziston.");
     }
 
-    if (start >= end) {
-      throw new Error("start_time duhet të jetë më i hershëm se end_time.");
+    const spotStatus = spotResult.recordset[0].status;
+    if (spotStatus !== "free") {
+      throw new Error("Ky vend parkimi është i zënë.");
     }
 
-    const diffHours = (end - start) / (1000 * 60 * 60);
-    if (diffHours > 8) {
-      throw new Error("Rezervimi nuk mund të jetë më i gjatë se 8 orë.");
+    // 3) kontrollo mbivendosje
+    request = new sql.Request(tx);
+    const overlapResult = await request
+      .input("spot_id", sql.Int, spot_id)
+      .input("start_time", sql.DateTime2, start)
+      .input("end_time", sql.DateTime2, end)
+      .query(`
+        SELECT COUNT(*) AS cnt
+        FROM reservations
+        WHERE spot_id = @spot_id
+          AND NOT (end_time <= @start_time OR start_time >= @end_time)
+      `);
+
+    if (overlapResult.recordset[0].cnt > 0) {
+      throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
     }
 
-    const tx = new sql.Transaction(pool);
+    // 4) mos lejo më shumë se 1 rezervim aktiv (strict)
+    request = new sql.Request(tx);
+    const activeResult = await request
+      .input("user_id", sql.Int, user_id)
+      .query(`
+        SELECT COUNT(*) AS cnt
+        FROM reservations
+        WHERE user_id = @user_id
+          AND end_time > GETDATE()
+      `);
 
-    try {
-      await tx.begin();
-
-      //Verifikimi i user-it
-      let request = new sql.Request(tx);
-      let userResult = await request
-        .input("user_id", sql.Int, user_id)
-        .query(`SELECT id, role FROM users WHERE id = @user_id`);
-
-      if (userResult.recordset.length === 0) {
-        throw new Error("Përdoruesi nuk ekziston.");
-      }
-
-      //Verifikimi i spot-it
-      request = new sql.Request(tx);
-      let spotResult = await request
-        .input("spot_id", sql.Int, spot_id)
-        .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
-
-      if (spotResult.recordset.length === 0) {
-        throw new Error("Parking spot nuk ekziston.");
-      }
-
-      const spotStatus = spotResult.recordset[0].status;
-      if (spotStatus !== "free") {
-        throw new Error("Ky vend parkimi është i zënë.");
-      }
-
-      //Mos lejimi i mbivendosjes per te njejtin spot
-      request = new sql.Request(tx);
-      let overlapResult = await request
-        .input("spot_id", sql.Int, spot_id)
-        .input("start_time", sql.DateTime2, start)
-        .input("end_time", sql.DateTime2, end)
-        .query(`
-          SELECT COUNT(*) AS cnt
-          FROM reservations
-          WHERE spot_id = @spot_id
-            AND NOT (end_time <= @start_time OR start_time >= @end_time)
-        `);
-
-      if (overlapResult.recordset[0].cnt > 0) {
-        throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
-      }
-
-      //Mos lejimi i me shume se 1 rezervim aktiv per user-in
-      request = new sql.Request(tx);
-      let activeResult = await request
-        .input("user_id", sql.Int, user_id)
-        .query(`
-          SELECT COUNT(*) AS cnt
-          FROM reservations
-          WHERE user_id = @user_id
-            AND end_time > GETDATE()
-        `);
-
-      if (activeResult.recordset[0].cnt > 1) {
-        // nese e bojme ma strikte e bojme > 0
-        throw new Error("Përdoruesi ka tashmë rezervime aktive.");
-      }
-
-      //Krijimi i rezervimit
-      request = new sql.Request(tx);
-      const insertResult = await request
-        .input("user_id", sql.Int, user_id)
-        .input("spot_id", sql.Int, spot_id)
-        .input("start_time", sql.DateTime2, start)
-        .input("end_time", sql.DateTime2, end)
-        .query(`
-          INSERT INTO reservations (user_id, spot_id, start_time, end_time)
-          OUTPUT INSERTED.*
-          VALUES (@user_id, @spot_id, @start_time, @end_time)
-        `);
-
-      const created = insertResult.recordset[0];
-
-      //Perditesimi i statusit ne vendin 'occupied'
-      request = new sql.Request(tx);
-      await request
-        .input("spot_id", sql.Int, spot_id)
-        .query(`
-          UPDATE ParkingSpots
-          SET status = 'occupied'
-          WHERE id = @spot_id
-        `);
-
-      await tx.commit();
-      return created;
-    } catch (err) {
-      await tx.rollback();
-      throw err;
+    if (activeResult.recordset[0].cnt > 0) {
+      throw new Error("Përdoruesi ka tashmë rezervim aktiv.");
     }
-  },
+
+    // 5) insert reservation
+    request = new sql.Request(tx);
+    const insertResult = await request
+      .input("user_id", sql.Int, user_id)
+      .input("spot_id", sql.Int, spot_id)
+      .input("start_time", sql.DateTime2, start)
+      .input("end_time", sql.DateTime2, end)
+      .query(`
+        INSERT INTO reservations (user_id, spot_id, start_time, end_time)
+        OUTPUT INSERTED.*
+        VALUES (@user_id, @spot_id, @start_time, @end_time)
+      `);
+
+    const created = insertResult.recordset[0];
+
+    // 6) bëje spot occupied
+    request = new sql.Request(tx);
+    await request
+      .input("spot_id", sql.Int, spot_id)
+      .query(`
+        UPDATE ParkingSpots
+        SET status = 'occupied'
+        WHERE id = @spot_id
+      `);
+
+    await tx.commit();
+    return created;
+  } catch (err) {
+    await tx.rollback();
+    throw err;
+  }
+},
+
 
   // PUT /api/reservations/:id
   update: async (id, data) => {

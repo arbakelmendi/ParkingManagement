@@ -3,48 +3,14 @@ const { sql, pool, poolConnect } = require("../config/db");
 
 const Parking = {
   getAll: async () => {
-    await poolConnect; 
-    //get all parking attributes
+    await poolConnect;
     const result = await pool.request().query(`
-      SELECT Id, Name, Capacity, Occupied
+      SELECT Id, Name, Location, Capacity, Occupied
       FROM Parkings
       ORDER BY Id ASC
     `);
     return result.recordset;
   },
-
-  
-  incrementOccupied: async (parkingId) => {
-    await poolConnect;
-    const result = await pool
-      .request()
-      .input("Id", sql.Int, parkingId)
-      .query(`
-        UPDATE Parkings
-        SET Occupied = Occupied + 1
-        OUTPUT INSERTED.*
-        WHERE Id = @Id
-     `);
-    return result.recordset[0];
-  },
-
-  decrementOccupied: async (parkingId) => {
-    await poolConnect;
-    const result = await pool
-      .request()
-      .input("Id", sql.Int, parkingId)
-      .query(`
-        UPDATE Parkings
-        SET Occupied = CASE 
-                         WHEN Occupied > 0 THEN Occupied - 1 
-                         ELSE 0 
-                       END
-        OUTPUT INSERTED.*
-        WHERE Id = @Id
-      `);
-    return result.recordset[0];
-  },
-
 
   getById: async (id) => {
     await poolConnect;
@@ -52,7 +18,7 @@ const Parking = {
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT Id, Name, Capacity, Occupied
+        SELECT Id, Name, Location, Capacity, Occupied
         FROM Parkings
         WHERE Id = @Id
       `);
@@ -64,12 +30,13 @@ const Parking = {
     const result = await pool
       .request()
       .input("Name", sql.NVarChar(100), data.name)
+      .input("Location", sql.NVarChar(200), data.location)
       .input("Capacity", sql.Int, data.capacity)
-      .input("Occupied", sql.Int, data.occupied)
+      .input("Occupied", sql.Int, data.occupied || 0)
       .query(`
-        INSERT INTO Parkings (Name, Capacity, Occupied)
+        INSERT INTO Parkings (Name, Location, Capacity, Occupied)
         OUTPUT INSERTED.*
-        VALUES (@Name, @Capacity, @Occupied)
+        VALUES (@Name, @Location, @Capacity, @Occupied)
       `);
     return result.recordset[0];
   },
@@ -80,17 +47,19 @@ const Parking = {
       .request()
       .input("Id", sql.Int, id)
       .input("Name", sql.NVarChar(100), data.name)
+      .input("Location", sql.NVarChar(200), data.location)
       .input("Capacity", sql.Int, data.capacity)
       .input("Occupied", sql.Int, data.occupied)
       .query(`
         UPDATE Parkings
         SET Name = @Name,
+            Location = @Location,
             Capacity = @Capacity,
             Occupied = @Occupied
         OUTPUT INSERTED.*
         WHERE Id = @Id
       `);
-    return result.recordset[0];
+    return result.recordset[0] || null;
   },
 
   delete: async (id) => {
@@ -98,11 +67,36 @@ const Parking = {
     await pool
       .request()
       .input("Id", sql.Int, id)
+      .query(`DELETE FROM Parkings WHERE Id = @Id`);
+    return true;
+  },
+
+  incrementOccupied: async (parkingId) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, parkingId)
       .query(`
-        DELETE FROM Parkings
+        UPDATE Parkings
+        SET Occupied = Occupied + 1
+        OUTPUT INSERTED.*
         WHERE Id = @Id
       `);
-    return true;
+    return result.recordset[0];
+  },
+
+  decrementOccupied: async (parkingId) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, parkingId)
+      .query(`
+        UPDATE Parkings
+        SET Occupied = CASE WHEN Occupied > 0 THEN Occupied - 1 ELSE 0 END
+        OUTPUT INSERTED.*
+        WHERE Id = @Id
+      `);
+    return result.recordset[0];
   },
 };
 

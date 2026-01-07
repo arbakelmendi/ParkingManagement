@@ -5,7 +5,7 @@ const Spot = {
   getAll: async () => {
     await poolConnect;
     const result = await pool.request().query(`
-      SELECT id, spot_number, status
+      SELECT id, spot_number, status, ParkingId
       FROM ParkingSpots
       ORDER BY id ASC
     `);
@@ -18,7 +18,7 @@ const Spot = {
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT id, spot_number, status, IsOccupied
+        SELECT id, spot_number, status, ParkingId
         FROM ParkingSpots
         WHERE id = @Id
       `);
@@ -31,10 +31,11 @@ const Spot = {
       .request()
       .input("SpotNumber", sql.Int, data.spot_number)
       .input("Status", sql.NVarChar(20), data.status || "free")
+      .input("ParkingId", sql.Int, data.parkingId || null)
       .query(`
-        INSERT INTO ParkingSpots (spot_number, status)
+        INSERT INTO ParkingSpots (spot_number, status, ParkingId)
         OUTPUT INSERTED.*
-        VALUES (@SpotNumber, @Status)
+        VALUES (@SpotNumber, @Status, @ParkingId)
       `);
     return result.recordset[0];
   },
@@ -46,10 +47,12 @@ const Spot = {
       .input("Id", sql.Int, id)
       .input("SpotNumber", sql.Int, data.spot_number)
       .input("Status", sql.NVarChar(20), data.status)
+      .input("ParkingId", sql.Int, data.parkingId || null)
       .query(`
         UPDATE ParkingSpots
         SET spot_number = @SpotNumber,
-            status = @Status
+            status      = @Status,
+            ParkingId   = @ParkingId
         OUTPUT INSERTED.*
         WHERE id = @Id
       `);
@@ -68,20 +71,21 @@ const Spot = {
     return true;
   },
 
-  setOccupied: async (id, isOccupied) => {
-      await poolConnect;
-      const result = await pool
-        .request()
-        .input("Id", sql.Int, id)
-        .input("IsOccupied", sql.Bit, isOccupied ? 1 : 0)
-        .query(`
-          UPDATE ParkingSpots
-          SET IsOccupied = @IsOccupied
-          OUTPUT INSERTED.*
-          WHERE Id = @Id
-        `);
-      return result.recordset[0];
-    },
+  // vetem status (free/occupied)
+  setStatus: async (id, status) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, id)
+      .input("Status", sql.NVarChar(20), status)
+      .query(`
+        UPDATE ParkingSpots
+        SET status = @Status
+        OUTPUT INSERTED.*
+        WHERE id = @Id
+      `);
+    return result.recordset[0] || null;
+  },
 };
 
 module.exports = Spot;

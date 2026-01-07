@@ -25,17 +25,21 @@ async function getParking(req, res) {
   }
 }
 
-// POST /api/parkings
 async function createParking(req, res) {
   try {
-    const created = await Parking.create(req.body);
+    const created = await Parking.create({
+      name: req.body.name,
+      location: req.body.location,
+      capacity: req.body.capacity,
+      occupied: req.body.occupied || 0,
+    });
 
-    //Dergimi i eventeve ne Kafka
     const eventPayload = {
       type: "ParkingCreated",
-      parkingId: created.id,   
-      name: created.name,
-      location: created.location,
+      parkingId: created.Id,
+      name: created.Name,
+      location: created.Location,
+      capacity: created.Capacity,
       timestamp: new Date().toISOString(),
     };
 
@@ -45,9 +49,8 @@ async function createParking(req, res) {
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
       console.log("Kafka ParkingCreated:", eventPayload);
-    } catch (kafkaErr) {
-      console.error("Kafka error (ParkingCreated):", kafkaErr);
-      // nuk e prishim request-in, veç e log-ojme
+    } catch (err) {
+      console.error("Kafka error:", err);
     }
 
     res.status(201).json(created);
@@ -57,16 +60,15 @@ async function createParking(req, res) {
   }
 }
 
-// PUT /api/parkings/:id
+
 async function updateParking(req, res) {
   try {
     const updated = await Parking.update(req.params.id, req.body);
     if (!updated) return res.status(404).json({ message: "Not Found" });
 
-    //Eventet per update
     const eventPayload = {
       type: "ParkingUpdated",
-      parkingId: updated.id || req.params.id,
+      parkingId: updated.Id,
       data: updated,
       timestamp: new Date().toISOString(),
     };
@@ -76,9 +78,8 @@ async function updateParking(req, res) {
         topic: "parking-events",
         messages: [{ value: JSON.stringify(eventPayload) }],
       });
-      console.log("Kafka ParkingUpdated:", eventPayload);
-    } catch (kafkaErr) {
-      console.error("Kafka error (ParkingUpdated):", kafkaErr);
+    } catch (err) {
+      console.error("Kafka error:", err);
     }
 
     res.json(updated);
@@ -87,6 +88,7 @@ async function updateParking(req, res) {
     res.status(500).json({ error: "Error updating parking" });
   }
 }
+
 
 // DELETE /api/parkings/:id
 async function deleteParking(req, res) {
