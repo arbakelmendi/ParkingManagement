@@ -1,4 +1,4 @@
-// backend/config/db.js
+// services/parking-service/config/db.js
 const sql = require("mssql");
 
 const config = {
@@ -8,24 +8,13 @@ const config = {
   server: process.env.DB_SERVER,
   port: Number(process.env.DB_PORT) || 1433,
   options: {
-    encrypt: false,            // se jemi lokal
-    trustServerCertificate: true,
+    encrypt: String(process.env.DB_ENCRYPT || "false").toLowerCase() === "true",
+    trustServerCertificate: String(process.env.DB_TRUST_CERT || "true").toLowerCase() === "true",
   },
 };
 
-// krijimi i connection pool
 const pool = new sql.ConnectionPool(config);
-const poolConnect = pool
-  .connect()
-  .then(() => {
-    console.log("Database connected");
-  })
-  .catch((err) => {
-    console.error("Database connection failed:", err);
-  });
 
-module.exports = {
-  sql,
-  pool,
-  poolConnect,
-};
+const poolConnect = pool.connect(); // mos e kap këtu
+
+module.exports = { sql, pool, poolConnect };
