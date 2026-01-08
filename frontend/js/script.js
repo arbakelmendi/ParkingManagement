@@ -1,5 +1,8 @@
 const API = "http://localhost:3000/api";
 
+// ✅ ruajmë parkingun default këtu
+let firstParkingId = null;
+
 function getToken() {
   return localStorage.getItem("token");
 }
@@ -30,9 +33,9 @@ async function login() {
   document.getElementById("authMsg").innerText =
     `Logged in as ${data.user.email} (${data.user.role})`;
 
+  await loadParkings();   // ✅ merre firstParkingId
   loadSpots();
   loadReservations();
-  loadParkings();
 }
 
 function logout() {
@@ -40,27 +43,28 @@ function logout() {
   document.getElementById("authMsg").innerText = "Logged out";
 }
 
+// ✅ Merr parkingun e parë automatikisht (Opsioni B)
 async function loadParkings() {
   const res = await fetch(`${API}/parkings`);
   const data = await res.json();
 
-  const select = document.getElementById("adminParkingSelect");
-  select.innerHTML = "";
-
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(data) || data.length === 0) {
     console.log("loadParkings response:", data);
-    select.innerHTML = `<option value="">No parkings</option`>;
+    firstParkingId = null;
+    const msgEl = document.getElementById("spotMsg");
+    if (msgEl) msgEl.innerText = "Nuk ka parkinge në DB. Shto një parking fillimisht.";
     return;
   }
 
-  data.forEach((p) => {
-    const opt = document.createElement("option");
-    opt.value = p.Id ?? p.id; // nese API kthen Id ose id
-    opt.textContent = `${p.Name ?? p.name} (ID: ${p.Id ?? p.id})`;
-    select.appendChild(opt);
-  });
-}
+  firstParkingId = Number(data[0].Id ?? data[0].id);
 
+  // opsionale: informo adminin cili parking po përdoret automatikisht
+  const msgEl = document.getElementById("spotMsg");
+  if (msgEl) {
+    const name = data[0].Name ?? data[0].name;
+    msgEl.innerText = `Parking default: ${name} (ID: ${firstParkingId})`;
+  }
+}
 
 // Load Parking Spots (public)
 async function loadSpots() {
@@ -86,16 +90,26 @@ async function loadSpots() {
   });
 }
 
-// ✅ Admin: Create Spot (needs admin token)
+// ✅ Admin: Create Spot (ParkingId automatik)
 async function createSpot() {
-  const ParkingId = Number(document.getElementById("adminParkingSelect").value);
   const spot_number = Number(document.getElementById("adminSpotNumber").value);
   const status = document.getElementById("adminSpotStatus").value;
 
-  if (!ParkingId) {
-    document.getElementById("spotMsg").innerText = "Zgjedh një parking nga lista.";
+  if (!getToken()) {
+    document.getElementById("spotMsg").innerText = "Duhet me bo login si admin.";
     return;
   }
+
+  // ✅ nëse parking default s’është marrë ende
+  if (!firstParkingId) {
+    await loadParkings();
+  }
+
+  if (!firstParkingId) {
+    document.getElementById("spotMsg").innerText = "Nuk u gjet asnjë parking në DB.";
+    return;
+  }
+
   if (!spot_number) {
     document.getElementById("spotMsg").innerText = "Spot Number është i detyrueshëm.";
     return;
@@ -107,7 +121,7 @@ async function createSpot() {
       "Content-Type": "application/json",
       ...authHeaders(),
     },
-    body: JSON.stringify({ ParkingId, spot_number, status }),
+    body: JSON.stringify({ ParkingId: firstParkingId, spot_number, status }),
   });
 
   const data = await res.json();
@@ -119,7 +133,8 @@ async function createSpot() {
     return;
   }
 
-  document.getElementById("spotMsg").innerText = `Spot created ✅ (id: ${data.id ?? data.Id})`;
+  document.getElementById("spotMsg").innerText =
+    `Spot created ✅ (id: ${data.id ?? data.Id}) for ParkingId=${firstParkingId}`;
   loadSpots();
 }
 
@@ -212,4 +227,38 @@ async function cancelReservation(id) {
 
 // kur hapet faqja
 loadSpots();
-loadParkings();s
+loadParkings();
+
+async function register() {
+  const name = document.getElementById("regName").value;
+  const email = document.getElementById("regEmail").value;
+  const password = document.getElementById("regPassword").value;
+
+  const res = await fetch(`${API}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    document.getElementById("regMsg").innerText =
+      data.message || "Register failed";
+    console.log("register error:", data);
+    return;
+  }
+
+  // auto-login pas register
+  localStorage.setItem("token", data.token);
+
+  document.getElementById("regMsg").innerText =
+    `Registered & logged in as ${data.user.email}`;
+
+  document.getElementById("authMsg").innerText =
+    `Logged in as ${data.user.email} (${data.user.role})`;
+
+  loadSpots();
+  loadReservations();
+}
+
