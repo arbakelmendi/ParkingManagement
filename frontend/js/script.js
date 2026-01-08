@@ -1,4 +1,6 @@
-const API = "http://localhost:3000/api";
+const AUTH_API = "http://localhost:3001/api";
+const PARKING_API = "http://localhost:3002/api";
+const RES_API = "http://localhost:3003/api";
 
 function getToken() {
   return localStorage.getItem("token");
@@ -49,7 +51,7 @@ async function loadParkings() {
 
   if (!Array.isArray(data)) {
     console.log("loadParkings response:", data);
-    select.innerHTML = `<option value="">No parkings</option`>;
+    select.innerHTML = "<option value=''>No parkings</option>";
     return;
   }
 
