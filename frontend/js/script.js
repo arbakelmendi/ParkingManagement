@@ -1,4 +1,6 @@
-const API = "http://localhost:3000/api";
+const AUTH_API = "http://localhost:3001/api";
+const PARKING_API = "http://localhost:3002/api";
+const RES_API = "http://localhost:3003/api";
 
 // ✅ ruajmë parkingun default këtu
 let firstParkingId = null;
@@ -50,9 +52,13 @@ async function loadParkings() {
 
   if (!Array.isArray(data) || data.length === 0) {
     console.log("loadParkings response:", data);
+<<<<<<< HEAD
     firstParkingId = null;
     const msgEl = document.getElementById("spotMsg");
     if (msgEl) msgEl.innerText = "Nuk ka parkinge në DB. Shto një parking fillimisht.";
+=======
+    select.innerHTML = "<option value=''>No parkings</option>";
+>>>>>>> 6b9c75b02bd9b4689eb3a18091ae313695f3d911
     return;
   }
 
