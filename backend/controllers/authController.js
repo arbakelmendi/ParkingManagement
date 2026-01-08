@@ -78,9 +78,9 @@ async function login(req, res) {
     return res.status(500).json({ message: "Server error" });
   }
 }
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
+//const bcrypt = require("bcrypt");
+//const jwt = require("jsonwebtoken");
+//const User = require("../models/userModel");
 
 async function register(req, res) {
   try {
@@ -133,7 +133,7 @@ async function login(req, res) {
       return res.status(400).json({ message: "email dhe password janë të detyrueshme." });
     }
 
-    const user = await User.getByEmail(email);
+    const user = await User.findByEmail(email);
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
     const ok = await bcrypt.compare(password, user.password);
