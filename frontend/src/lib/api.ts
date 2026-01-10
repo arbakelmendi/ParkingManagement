@@ -1,4 +1,5 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosHeaders } from 'axios';
+
 
 // Types
 export interface User {
@@ -15,6 +16,7 @@ export interface AdminUser {
   role: 'admin' | 'user';
   createdAt?: string;
 }
+
 export interface AuthResponse {
   user: User;
   token: string;
@@ -32,6 +34,16 @@ export interface Parking {
   updatedAt?: string;
 }
 
+/**
+ * NOTE:
+ * DB columns (from your screenshot):
+ * id, spot_number (varchar), status (varchar), IsOccupied (bit), ParkingId (int)
+ *
+ * So we normalize to a stable frontend shape:
+ * - SpotNumber string
+ * - ParkingId string
+ * - IsAvailable derived from status/IsOccupied
+ */
 export interface Spot {
   id: string;
   ParkingId: string;
@@ -71,6 +83,7 @@ const normalizeUser = (input: AnyRecord): User => {
     roleRaw === 'admin' || roleRaw === 'role_admin' || roleRaw.endsWith('admin')
       ? 'admin'
       : 'user';
+
   return {
     id: String(input?.id ?? input?.Id ?? input?.ID ?? ''),
     name: String(input?.name ?? input?.Name ?? ''),
@@ -97,15 +110,20 @@ const normalizeParking = (input: AnyRecord): Parking => {
     input?.Capacity ??
     input?.capacity ??
     0;
-  const availableSpots = input?.availableSpots ?? input?.AvailableSpots ?? input?.available_spots;
+
+  const availableSpots =
+    input?.availableSpots ?? input?.AvailableSpots ?? input?.available_spots;
+
   const pricePerHour = input?.pricePerHour ?? input?.PricePerHour ?? input?.price_per_hour;
   const occupied = input?.Occupied ?? input?.occupied;
+
   const computedAvailable =
     availableSpots !== undefined
       ? Number(availableSpots)
       : totalSpots && occupied !== undefined
       ? Math.max(0, Number(totalSpots) - Number(occupied))
       : undefined;
+
   return {
     id: String(input?.id ?? input?.Id ?? input?.ID ?? ''),
     name: String(input?.name ?? input?.Name ?? ''),
@@ -121,14 +139,23 @@ const normalizeParking = (input: AnyRecord): Parking => {
 
 const normalizeSpot = (input: AnyRecord): Spot => {
   const statusRaw = String(input?.status ?? input?.Status ?? '').toLowerCase().trim();
+
+  // Prefer IsOccupied if present (DB has it)
+  const isOccupiedRaw =
+    input?.IsOccupied ?? input?.isOccupied ?? input?.is_occupied ?? undefined;
+
+  const isOccupied =
+    isOccupiedRaw !== undefined ? Boolean(isOccupiedRaw) : (statusRaw === 'occupied');
+
   const isAvailable =
     input?.IsAvailable ??
     input?.isAvailable ??
-    (statusRaw ? statusRaw !== 'occupied' : true);
+    !isOccupied;
+
   return {
     id: String(input?.id ?? input?.Id ?? input?.ID ?? ''),
     ParkingId: String(input?.ParkingId ?? input?.parkingId ?? input?.parking_id ?? ''),
-    SpotNumber: String(input?.SpotNumber ?? input?.spotNumber ?? input?.spot_number ?? ''),
+    SpotNumber: String(input?.spot_number ?? input?.SpotNumber ?? input?.spotNumber ?? ''),
     IsAvailable: Boolean(isAvailable),
     createdAt: input?.createdAt ?? input?.CreatedAt,
     updatedAt: input?.updatedAt ?? input?.UpdatedAt,
@@ -136,29 +163,37 @@ const normalizeSpot = (input: AnyRecord): Spot => {
 };
 
 const toSpotPayload = (data: Partial<Spot> & AnyRecord) => {
-  const statusRaw = String(data?.status ?? '').toLowerCase().trim();
+  // Accept many shapes from UI
+  const spotNumber = data?.SpotNumber ?? data?.spotNumber ?? data?.spot_number;
+  const parkingId = data?.ParkingId ?? data?.parkingId ?? data?.parking_id;
+
+  if (spotNumber === undefined || spotNumber === null || String(spotNumber).trim() === '') {
+    throw new Error('SpotNumber is required');
+  }
+  if (parkingId === undefined || parkingId === null || String(parkingId).trim() === '') {
+    throw new Error('ParkingId is required');
+  }
+
+  const statusRaw = String(data?.status ?? data?.Status ?? '').toLowerCase().trim();
   const isAvailable =
     data?.IsAvailable ??
     data?.isAvailable ??
     (statusRaw ? statusRaw !== 'occupied' : true);
-  const spotNumber = Number(data?.SpotNumber ?? data?.spotNumber ?? data?.spot_number ?? NaN);
-  const parkingId = Number(data?.ParkingId ?? data?.parkingId ?? data?.parking_id ?? NaN);
-  if (!Number.isFinite(spotNumber) || spotNumber <= 0) {
-    throw new Error('Spot number must be a positive number');
-  }
-  if (!Number.isFinite(parkingId) || parkingId <= 0) {
-    throw new Error('ParkingId is required');
-  }
+
   return {
-    spot_number: spotNumber,
+    // backend/DB expects these names
+    spot_number: Number.isFinite(Number(spotNumber)) ? Number(spotNumber) : String(spotNumber),
     status: isAvailable ? 'free' : 'occupied',
-    ParkingId: parkingId,
+    ParkingId: Number(parkingId),
+    // optional but helpful if backend supports it
+    IsOccupied: isAvailable ? 0 : 1,
   };
 };
 
 const normalizeReservation = (input: AnyRecord): Reservation => {
   const spotNumber = input?.spot_number ?? input?.SpotNumber ?? input?.spotNumber;
   const parkingId = input?.ParkingId ?? input?.parkingId ?? input?.parking_id;
+
   return {
     id: String(input?.id ?? input?.Id ?? input?.ID ?? ''),
     UserId: String(input?.user_id ?? input?.UserId ?? input?.userId ?? ''),
@@ -188,13 +223,7 @@ const normalizeReservation = (input: AnyRecord): Reservation => {
   };
 };
 
-// API Error type
-export interface ApiError {
-  message: string;
-  status?: number;
-}
-
-const AUTH_BASE = import.meta.env.VITE_AUTH_URL ?? "";
+const AUTH_BASE = import.meta.env.VITE_AUTH_URL ?? '';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -208,26 +237,30 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      const headers = AxiosHeaders.from(config.headers);
+      headers.set('Authorization', `Bearer ${token}`);
+      config.headers = headers;
     }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
+  (error: AxiosError<any>) => {
+    // keep the original AxiosError so you can read error.response.data.details
     if (error.response?.status === 401) {
-      // Clear auth data and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    const message = error.response?.data?.message || error.message || 'An error occurred';
-    return Promise.reject({ message, status: error.response?.status });
+    return Promise.reject(error);
   }
 );
 
@@ -268,12 +301,12 @@ export const parkingsApi = {
 
   create: async (data: Partial<Parking>): Promise<Parking> => {
     const response = await api.post<Parking>('/parkings', data);
-    return response.data;
+    return normalizeParking(response.data as AnyRecord);
   },
 
   update: async (id: string, data: Partial<Parking>): Promise<Parking> => {
     const response = await api.put<Parking>(`/parkings/${id}`, data);
-    return response.data;
+    return normalizeParking(response.data as AnyRecord);
   },
 
   delete: async (id: string): Promise<void> => {
@@ -285,11 +318,9 @@ export const parkingsApi = {
 export const spotsApi = {
   getByParkingId: async (parkingId: string): Promise<Spot[]> => {
     try {
-      // First try the specific parking spots endpoint
       const response = await api.get<Spot[]>(`/parkings/${parkingId}/spots`);
       return (response.data as AnyRecord[]).map(normalizeSpot);
-    } catch (error) {
-      // Fallback: get all spots and filter by ParkingId
+    } catch {
       const response = await api.get<Spot[]>('/spots');
       return (response.data as AnyRecord[])
         .map(normalizeSpot)

@@ -163,13 +163,20 @@ const Parkings: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      name: formData.name,
-      location: formData.location,
-      address: formData.location,
-      totalSpots: parseInt(formData.totalSpots) || 0,
-      pricePerHour: formData.pricePerHour ? parseFloat(formData.pricePerHour) : undefined,
-    };
+  const total = Number.parseInt(formData.totalSpots, 10);
+
+  const data = {
+    name: formData.name,
+    location: formData.location,
+    address: formData.location,
+
+    // ✅ dërgo të dyjat, që backend me e kap gjithmonë
+    totalSpots: Number.isFinite(total) ? total : 0,
+    capacity: Number.isFinite(total) ? total : 0,
+
+    pricePerHour: formData.pricePerHour ? Number.parseFloat(formData.pricePerHour) : undefined,
+  };
+
     console.log('Create parking payload:', data);
 
     if (editingParking) {
