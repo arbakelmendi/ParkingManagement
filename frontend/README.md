@@ -1,16 +1,40 @@
-# React + Vite
+# ParkingHub - Parking Management System Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern React frontend for parking management with authentication, reservations, and admin dashboard.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev  # Runs on port 8080 with API proxying
+```
 
-## React Compiler
+## Docker
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+docker build -t parking-frontend .
+docker run -p 5173:80 parking-frontend
+```
 
-## Expanding the ESLint configuration
+See `docker-compose.frontend.yml` for integration with backend services.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## API Proxy Configuration
+
+**Dev (Vite):** Configured in `vite.config.ts`
+**Prod (nginx):** Configured in `nginx.conf`
+
+| Route | Target |
+|-------|--------|
+| `/api/auth` | `auth-service:3001` |
+| `/api/parkings` | `parking-service:3002` |
+| `/api/spots` | `parking-service:3002` |
+| `/api/reservations` | `reservation-service:3003` |
+| `/api/admin` | `auth-service:3001` |
+
+## Auth
+
+Stores in localStorage: `token` (JWT), `user` (object with role: "admin" or "user")
+
+## Tech Stack
+
+React 18, TypeScript, Vite, TailwindCSS, React Query, Framer Motion, Shadcn/UI

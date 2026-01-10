@@ -5,9 +5,18 @@ const Parking = {
   getAll: async () => {
     await poolConnect;
     const result = await pool.request().query(`
-      SELECT Id, Name, Location, Capacity, Occupied
-      FROM Parkings
-      ORDER BY Id ASC
+      SELECT
+        p.Id,
+        p.Name,
+        p.Location,
+        p.Capacity,
+        p.Occupied,
+        COUNT(ps.id) AS TotalSpots,
+        SUM(CASE WHEN ps.status = 'free' THEN 1 ELSE 0 END) AS AvailableSpots
+      FROM Parkings p
+      LEFT JOIN ParkingSpots ps ON ps.ParkingId = p.Id
+      GROUP BY p.Id, p.Name, p.Location, p.Capacity, p.Occupied
+      ORDER BY p.Id ASC
     `);
     return result.recordset;
   },
@@ -18,9 +27,18 @@ const Parking = {
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT Id, Name, Location, Capacity, Occupied
-        FROM Parkings
-        WHERE Id = @Id
+        SELECT
+          p.Id,
+          p.Name,
+          p.Location,
+          p.Capacity,
+          p.Occupied,
+          COUNT(ps.id) AS TotalSpots,
+          SUM(CASE WHEN ps.status = 'free' THEN 1 ELSE 0 END) AS AvailableSpots
+        FROM Parkings p
+        LEFT JOIN ParkingSpots ps ON ps.ParkingId = p.Id
+        WHERE p.Id = @Id
+        GROUP BY p.Id, p.Name, p.Location, p.Capacity, p.Occupied
       `);
     return result.recordset[0] || null;
   },

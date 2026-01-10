@@ -45,14 +45,14 @@ const Spot = {
     const result = await pool
       .request()
       .input("Id", sql.Int, id)
-      .input("SpotNumber", sql.Int, data.spot_number)
-      .input("Status", sql.NVarChar(20), data.status)
-      .input("ParkingId", sql.Int, data.parkingId || null)
+      .input("SpotNumber", sql.Int, data.spot_number ?? null)
+      .input("Status", sql.NVarChar(20), data.status ?? null)
+      .input("ParkingId", sql.Int, data.ParkingId ?? data.parkingId ?? null)
       .query(`
         UPDATE ParkingSpots
-        SET spot_number = @SpotNumber,
-            status      = @Status,
-            ParkingId   = @ParkingId
+        SET spot_number = COALESCE(@SpotNumber, spot_number),
+            status      = COALESCE(@Status, status),
+            ParkingId   = COALESCE(@ParkingId, ParkingId)
         OUTPUT INSERTED.*
         WHERE id = @Id
       `);

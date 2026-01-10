@@ -1,0 +1,57 @@
+# Docker Compose extension for ParkingManagement frontend
+# Add this service to your existing docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Existing services (Kafka, Zookeeper, etc.) should remain in the main compose file
+  # This file shows what to add for the frontend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: parking-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - auth-service
+      - parking-service
+      - reservation-service
+    networks:
+      - parking-network
+    restart: unless-stopped
+
+  # Placeholder backend services (replace with your actual service definitions)
+  # These show the expected service names and ports
+
+  auth-service:
+    # Your auth service configuration
+    # Expected to be running on port 3001 internally
+    container_name: auth-service
+    ports:
+      - "3001:3001"
+    networks:
+      - parking-network
+
+  parking-service:
+    # Your parking service configuration
+    # Expected to be running on port 3002 internally
+    container_name: parking-service
+    ports:
+      - "3002:3002"
+    networks:
+      - parking-network
+
+  reservation-service:
+    # Your reservation service configuration
+    # Expected to be running on port 3003 internally
+    container_name: reservation-service
+    ports:
+      - "3003:3003"
+    networks:
+      - parking-network
+
+networks:
+  parking-network:
+    driver: bridge

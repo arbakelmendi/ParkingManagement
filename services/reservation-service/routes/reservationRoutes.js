@@ -13,6 +13,9 @@ router.get("/", requireAuth, controller.getMyReservations);
 // admin: i sheh krejt
 router.get("/all", requireAuth, requireRole("admin"), controller.getAllReservations);
 
+// availability for a time range
+router.get("/availability", requireAuth, controller.getAvailability);
+
 // create (user ose admin)
 router.post("/", requireAuth, controller.createReservation);
 

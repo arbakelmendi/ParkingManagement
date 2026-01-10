@@ -3,11 +3,18 @@ const { sql, pool, poolConnect } = require("../config/db");
 
 const User = {
   // mos e kthe password_hash
-  getAll: async () => {
+  getAll: async (q) => {
     await poolConnect;
-    const result = await pool.request().query(`
-      SELECT id, name, email, role
+    const request = pool.request();
+    let where = "";
+    if (q) {
+      request.input("Q", sql.NVarChar(200), `%${q}%`);
+      where = "WHERE name LIKE @Q OR email LIKE @Q OR role LIKE @Q";
+    }
+    const result = await request.query(`
+      SELECT id, name, email, role, created_at
       FROM dbo.users
+      ${where}
       ORDER BY id ASC
     `);
     return result.recordset;
@@ -20,7 +27,7 @@ const User = {
       .request()
       .input("Id", sql.Int, id)
       .query(`
-        SELECT id, name, email, role
+        SELECT id, name, email, role, created_at
         FROM dbo.users
         WHERE id = @Id
       `);
@@ -34,7 +41,7 @@ const User = {
       .request()
       .input("Email", sql.NVarChar(200), email)
       .query(`
-        SELECT id, name, email, password_hash, role
+        SELECT id, name, email, password_hash, role, created_at
         FROM dbo.users
         WHERE email = @Email
       `);
@@ -53,7 +60,7 @@ const User = {
       .input("Role", sql.NVarChar(50), data.role || "user")
       .query(`
         INSERT INTO dbo.users (name, email, password_hash, role)
-        OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role
+        OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role, INSERTED.created_at
         VALUES (@Name, @Email, @PasswordHash, @Role)
       `);
 
@@ -83,7 +90,7 @@ const User = {
           email = @Email,
           role = @Role
           ${hasPassword ? ", password_hash = @PasswordHash" : ""}
-      OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role
+      OUTPUT INSERTED.id, INSERTED.name, INSERTED.email, INSERTED.role, INSERTED.created_at
       WHERE id = @Id
     `);
 

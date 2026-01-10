@@ -8,16 +8,39 @@ const Reservation = {
     const result = await pool
       .request()
       .input("spot_id", sql.Int, spot_id)
-      .input("start_time", sql.DateTime2, new Date(start_time))
-      .input("end_time", sql.DateTime2, new Date(end_time))
+      .input("start_time", sql.DateTime2, start_time)
+      .input("end_time", sql.DateTime2, end_time)
       .query(`
         SELECT COUNT(*) AS cnt
-        FROM reservations
+        FROM dbo.reservations
         WHERE spot_id = @spot_id
           AND @start_time < end_time
           AND @end_time > start_time
       `);
     return (result.recordset[0]?.cnt || 0) > 0;
+  },
+  getReservedSpotIds: async (start_time, end_time, parkingId) => {
+    await poolConnect;
+    const request = pool
+      .request()
+      .input("start_time", sql.DateTime2, start_time)
+      .input("end_time", sql.DateTime2, end_time);
+
+    let query = `
+      SELECT DISTINCT r.spot_id
+      FROM dbo.reservations r
+      JOIN dbo.ParkingSpots ps ON ps.id = r.spot_id
+      WHERE @start_time < r.end_time
+        AND @end_time > r.start_time
+    `;
+
+    if (parkingId) {
+      request.input("ParkingId", sql.Int, parkingId);
+      query += " AND ps.ParkingId = @ParkingId";
+    }
+
+    const result = await request.query(query);
+    return result.recordset.map((row) => String(row.spot_id));
   },
   // GET /api/reservations
   getAll: async () => {
@@ -25,15 +48,15 @@ const Reservation = {
     const result = await pool.request().query(`
       SELECT r.id,
              r.user_id,
-             u.name AS user_name,
              r.spot_id,
              ps.spot_number,
              ps.ParkingId,
+             p.Name AS parking_name,
              r.start_time,
              r.end_time
-      FROM reservations r
-      JOIN users u ON u.id = r.user_id
-      JOIN ParkingSpots ps ON ps.id = r.spot_id
+      FROM dbo.reservations r
+      JOIN dbo.ParkingSpots ps ON ps.id = r.spot_id
+      JOIN dbo.Parkings p ON p.Id = ps.ParkingId
       ORDER BY r.start_time DESC
     `);
     return result.recordset;
@@ -48,15 +71,15 @@ const Reservation = {
       .query(`
         SELECT r.id,
                r.user_id,
-               u.name AS user_name,
                r.spot_id,
                ps.spot_number,
                ps.ParkingId,
+               p.Name AS parking_name,
                r.start_time,
                r.end_time
-        FROM reservations r
-        JOIN users u ON u.id = r.user_id
-        JOIN ParkingSpots ps ON ps.id = r.spot_id
+        FROM dbo.reservations r
+        JOIN dbo.ParkingSpots ps ON ps.id = r.spot_id
+        JOIN dbo.Parkings p ON p.Id = ps.ParkingId
         WHERE r.id = @Id
       `);
 
@@ -73,9 +96,11 @@ const Reservation = {
       SELECT r.id, r.user_id, r.spot_id,
              ps.spot_number,
              ps.ParkingId,
+             p.Name AS parking_name,
              r.start_time, r.end_time
-      FROM reservations r
-      JOIN ParkingSpots ps ON ps.id = r.spot_id
+      FROM dbo.reservations r
+      JOIN dbo.ParkingSpots ps ON ps.id = r.spot_id
+      JOIN dbo.Parkings p ON p.Id = ps.ParkingId
       WHERE r.user_id = @user_id
       ORDER BY r.id DESC
     `);
@@ -115,21 +140,11 @@ const Reservation = {
     try {
       await tx.begin();
 
-      // 1) verifiko user
+      // 1) verifiko spot
       let request = new sql.Request(tx);
-      const userResult = await request
-        .input("user_id", sql.Int, user_id)
-        .query(`SELECT id, role FROM users WHERE id = @user_id`);
-
-      if (userResult.recordset.length === 0) {
-        throw new Error("Përdoruesi nuk ekziston.");
-      }
-
-      // 2) verifiko spot
-      request = new sql.Request(tx);
       const spotResult = await request
         .input("spot_id", sql.Int, spot_id)
-        .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
+        .query(`SELECT id, status FROM dbo.ParkingSpots WHERE id = @spot_id`);
 
       if (spotResult.recordset.length === 0) {
         throw new Error("Parking spot nuk ekziston.");
@@ -148,7 +163,7 @@ const Reservation = {
         .input("end_time", sql.DateTime2, end)
         .query(`
         SELECT COUNT(*) AS cnt
-        FROM reservations
+        FROM dbo.reservations
         WHERE spot_id = @spot_id
           AND NOT (end_time <= @start_time OR start_time >= @end_time)
       `);
@@ -169,7 +184,7 @@ const Reservation = {
         .input("start_time", sql.DateTime2, start)
         .input("end_time", sql.DateTime2, end)
         .query(`
-        INSERT INTO reservations (user_id, spot_id, start_time, end_time)
+        INSERT INTO dbo.reservations (user_id, spot_id, start_time, end_time)
         OUTPUT INSERTED.*
         VALUES (@user_id, @spot_id, @start_time, @end_time)
       `);
@@ -181,7 +196,7 @@ const Reservation = {
       await request
         .input("spot_id", sql.Int, spot_id)
         .query(`
-        UPDATE ParkingSpots
+        UPDATE dbo.ParkingSpots
         SET status = 'occupied'
         WHERE id = @spot_id
       `);
@@ -221,7 +236,7 @@ const Reservation = {
       let request = new sql.Request(tx);
       let resResult = await request
         .input("Id", sql.Int, id)
-        .query(`SELECT * FROM reservations WHERE id = @Id`);
+        .query(`SELECT * FROM dbo.reservations WHERE id = @Id`);
 
       if (resResult.recordset.length === 0) {
         await tx.rollback();
@@ -239,7 +254,7 @@ const Reservation = {
         .input("Id", sql.Int, id)
         .query(`
           SELECT COUNT(*) AS cnt
-          FROM reservations
+          FROM dbo.reservations
           WHERE spot_id = @spot_id
             AND id <> @Id
             AND NOT (end_time <= @start_time OR start_time >= @end_time)
@@ -256,7 +271,7 @@ const Reservation = {
         .input("start_time", sql.DateTime2, start)
         .input("end_time", sql.DateTime2, end)
         .query(`
-          UPDATE reservations
+          UPDATE dbo.reservations
           SET start_time = @start_time,
               end_time   = @end_time
           OUTPUT INSERTED.*
@@ -284,7 +299,7 @@ const Reservation = {
       // gjej spot_id per kete rezervim
       const resResult = await request
         .input("Id", sql.Int, id)
-        .query(`SELECT spot_id FROM reservations WHERE id = @Id`);
+        .query(`SELECT spot_id FROM dbo.reservations WHERE id = @Id`);
 
       if (resResult.recordset.length === 0) {
         await tx.rollback();
@@ -297,14 +312,14 @@ const Reservation = {
       request = new sql.Request(tx);
       await request
         .input("Id", sql.Int, id)
-        .query(`DELETE FROM reservations WHERE id = @Id`);
+        .query(`DELETE FROM dbo.reservations WHERE id = @Id`);
 
       // liroje vendin
       request = new sql.Request(tx);
       await request
         .input("spot_id", sql.Int, spotId)
         .query(`
-          UPDATE ParkingSpots
+          UPDATE dbo.ParkingSpots
           SET status = 'free'
           WHERE id = @spot_id
         `);
