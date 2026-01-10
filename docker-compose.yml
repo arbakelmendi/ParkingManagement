@@ -1,4 +1,34 @@
 services:
+
+  auth-service:
+    build: ./services/auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./services/auth-service/.env
+    depends_on:
+      - kafka
+
+  parking-service:
+    build: ./services/parking-service
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./services/parking-service/.env
+    depends_on:
+      - kafka
+      - auth-service
+
+  reservation-service:
+    build: ./services/reservation-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./services/reservation-service/.env
+    depends_on:
+      - kafka
+      - parking-service
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
     environment:
