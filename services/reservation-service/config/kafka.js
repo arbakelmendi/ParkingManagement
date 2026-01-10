@@ -1,14 +1,37 @@
 // services/reservation-service/config/kafka.js
-const { Kafka } = require("kafkajs");
+const { Kafka, Partitioners } = require("kafkajs");
 
-const enabled = String(process.env.KAFKA_ENABLED || "true").toLowerCase() === "true";
+const enabled =
+  String(process.env.KAFKA_ENABLED || "false").toLowerCase() === "true";
 
-const kafka = new Kafka({
-  clientId: "parking-management-app",
-  brokers: [(process.env.KAFKA_BROKER || "localhost:9092")],
-});
+// IMPORTANT: brenda Docker mos përdor localhost
+const brokers = (process.env.KAFKA_BROKERS || "kafka:29092")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
-const producer = kafka.producer();
+let producer = null;
 
-module.exports = { producer, enabled };
+if (enabled) {
+  const kafka = new Kafka({
+    clientId: "parking-management-app",
+    brokers,
+  });
 
+  // optional: me e hjek warning-un e partitioner
+  producer = kafka.producer({
+    createPartitioner: Partitioners.LegacyPartitioner,
+  });
+} else {
+  // producer dummy, me mos me plas kur thirret gabimisht
+  producer = {
+    connect: async () => {},
+    send: async () => {},
+    disconnect: async () => {},
+  };
+}
+
+module.exports = {
+  enabled,
+  producer,
+};

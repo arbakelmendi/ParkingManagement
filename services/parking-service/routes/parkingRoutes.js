@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/parkingController");
+const adminController = require("../controllers/adminController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 router.get("/", controller.getAllParkings);
+router.get("/admin/stats", requireAuth, requireRole("admin"), adminController.getAdminStats);
 router.get("/:id/spots", controller.getParkingSpots);
 router.get("/:id", controller.getParking);
 

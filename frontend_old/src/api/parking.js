@@ -24,7 +24,7 @@ export function getParkingById(token, id) {
 // Fallback: if /api/parkings/:id/spots fails (404), fetch ALL spots and filter.
 // This ensures the frontend works even if the user hasn't restarted the backend to apply routing fixes.
 export function getParkingAdminStats(token) {
-  return apiFetch("/api/admin/stats", { token });
+  return apiFetch("/api/parkings/admin/stats", { token });
 }
 
 export async function getParkingSpots(token, id) {

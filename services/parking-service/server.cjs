@@ -12,6 +12,7 @@ const app = express();
 const parkingRoutes = require("./routes/parkingRoutes");
 const spotRoutes = require("./routes/spotRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
 app.use(helmet());
 app.use(
@@ -50,6 +51,7 @@ app.get("/api/parkings/:id/spots", parkingController.getParkingSpots);
 app.use("/api/parkings", parkingRoutes);
 app.use("/api/spots", spotRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 function listRoutes(prefix, router) {
   console.log(`\n📌 Routes under ${prefix}:`);
@@ -64,6 +66,7 @@ function listRoutes(prefix, router) {
 listRoutes("/api/parkings", parkingRoutes);
 listRoutes("/api/spots", spotRoutes);
 listRoutes("/api/admin", adminRoutes);
+listRoutes("/api/dashboard", dashboardRoutes);
 
 
 console.log("🔥 RUNNING FILE:", __filename);

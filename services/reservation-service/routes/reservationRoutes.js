@@ -8,10 +8,16 @@ const controller = require("../controllers/reservationController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 // user: i sheh veç të vetat
-router.get("/", requireAuth, controller.getMyReservations);
+router.get("/my", requireAuth, controller.getMyReservations);
 
 // admin: i sheh krejt
+router.get("/", requireAuth, requireRole("admin"), controller.getAllReservations);
+
+// legacy admin list
 router.get("/all", requireAuth, requireRole("admin"), controller.getAllReservations);
+
+// admin stats (nën /api/reservations)
+router.get("/admin/stats", requireAuth, requireRole("admin"), require("../controllers/adminController").getAdminStats);
 
 // create (user ose admin)
 router.post("/", requireAuth, controller.createReservation);

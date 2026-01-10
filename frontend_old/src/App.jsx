@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import Users from "./pages/Users.jsx";
 import Parkings from "./pages/Parkings.jsx";
 import ParkingDetails from "./pages/ParkingDetails.jsx";
 import Reservations from "./pages/Reservations.jsx";
@@ -43,6 +44,14 @@ export default function App() {
           element={
             <AdminRoute>
               <Dashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/dashboard/users"
+          element={
+            <AdminRoute>
+              <Users />
             </AdminRoute>
           }
         />

@@ -13,6 +13,7 @@ export default function Layout() {
 
   const navItems = [
     { path: "/dashboard", label: "Dashboard", role: "admin" }, // Only admin
+    { path: "/dashboard/users", label: "Users", role: "admin" },
     { path: "/parkings", label: "Parkings", role: "" },
     { path: "/reservations", label: "Reservations", role: "" },
   ].filter(item => !item.role || item.role === user?.role);
@@ -46,7 +47,9 @@ export default function Layout() {
 
         <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === "/dashboard" && location.pathname.startsWith("/dashboard"));
             return (
               <Link
                 key={item.path}

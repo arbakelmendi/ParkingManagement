@@ -116,9 +116,9 @@ async function start() {
   // DB
   try {
     await poolConnect;
-    console.log("✅ Database connected");
+    console.log("Database connected");
   } catch (err) {
-    console.error("❌ DB connection failed", err);
+    console.error("DB connection failed", err);
     process.exit(1);
   }
 
@@ -126,18 +126,21 @@ async function start() {
   if (kafkaEnabled) {
     try {
       await producer.connect();
-      console.log("✅ Kafka producer connected");
+      console.log("Kafka producer connected");
     } catch (err) {
-      console.error("⚠️ Kafka connection failed (continuing without Kafka):", err.message);
+      console.error("Kafka connection failed (continuing without Kafka):", err.message);
       // mos e ndal service-in
     }
   } else {
-    console.log("ℹ️ Kafka disabled (KAFKA_ENABLED=false)");
+    console.log("Kafka disabled (KAFKA_ENABLED=false)");
   }
 
   app.listen(PORT, () => {
-    console.log(`🚀 reservation-service running on port ${PORT}`);
+    console.log(`reservation-service running on port ${PORT}`);
   });
 }
 
 start();
+
+
+

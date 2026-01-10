@@ -25,14 +25,12 @@ const Reservation = {
     const result = await pool.request().query(`
       SELECT r.id,
              r.user_id,
-             u.name AS user_name,
              r.spot_id,
              ps.spot_number,
              ps.ParkingId,
              r.start_time,
              r.end_time
       FROM reservations r
-      JOIN users u ON u.id = r.user_id
       JOIN ParkingSpots ps ON ps.id = r.spot_id
       ORDER BY r.start_time DESC
     `);
@@ -48,14 +46,12 @@ const Reservation = {
       .query(`
         SELECT r.id,
                r.user_id,
-               u.name AS user_name,
                r.spot_id,
                ps.spot_number,
                ps.ParkingId,
                r.start_time,
                r.end_time
         FROM reservations r
-        JOIN users u ON u.id = r.user_id
         JOIN ParkingSpots ps ON ps.id = r.spot_id
         WHERE r.id = @Id
       `);
@@ -115,18 +111,8 @@ const Reservation = {
     try {
       await tx.begin();
 
-      // 1) verifiko user
+      // 1) verifiko spot
       let request = new sql.Request(tx);
-      const userResult = await request
-        .input("user_id", sql.Int, user_id)
-        .query(`SELECT id, role FROM users WHERE id = @user_id`);
-
-      if (userResult.recordset.length === 0) {
-        throw new Error("Përdoruesi nuk ekziston.");
-      }
-
-      // 2) verifiko spot
-      request = new sql.Request(tx);
       const spotResult = await request
         .input("spot_id", sql.Int, spot_id)
         .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
@@ -135,12 +121,7 @@ const Reservation = {
         throw new Error("Parking spot nuk ekziston.");
       }
 
-      const spotStatus = spotResult.recordset[0].status;
-      if (spotStatus !== "free") {
-        throw new Error("Ky vend parkimi është i zënë.");
-      }
-
-      // 3) kontrollo mbivendosje
+      // 2) kontrollo mbivendosje
       request = new sql.Request(tx);
       const overlapResult = await request
         .input("spot_id", sql.Int, spot_id)
@@ -161,7 +142,7 @@ const Reservation = {
       // 4) Check removed: We now allow multiple reservations per user (overlap check still applies)
       // The strict "one active reservation" rule was preventing users from booking future slots.
 
-      // 5) insert reservation
+      // 3) insert reservation
       request = new sql.Request(tx);
       const insertResult = await request
         .input("user_id", sql.Int, user_id)
@@ -176,15 +157,18 @@ const Reservation = {
 
       const created = insertResult.recordset[0];
 
-      // 6) bëje spot occupied
-      request = new sql.Request(tx);
-      await request
-        .input("spot_id", sql.Int, spot_id)
-        .query(`
-        UPDATE ParkingSpots
-        SET status = 'occupied'
-        WHERE id = @spot_id
-      `);
+      // 4) bëje spot occupied vetëm nëse rezervimi është aktiv tani
+      const now = new Date();
+      if (start <= now && end >= now) {
+        request = new sql.Request(tx);
+        await request
+          .input("spot_id", sql.Int, spot_id)
+          .query(`
+          UPDATE ParkingSpots
+          SET status = 'occupied'
+          WHERE id = @spot_id
+        `);
+      }
 
       await tx.commit();
       return created;
@@ -281,10 +265,10 @@ const Reservation = {
 
       let request = new sql.Request(tx);
 
-      // gjej spot_id per kete rezervim
+      // gjej spot_id dhe orarin per kete rezervim
       const resResult = await request
         .input("Id", sql.Int, id)
-        .query(`SELECT spot_id FROM reservations WHERE id = @Id`);
+        .query(`SELECT spot_id, start_time, end_time FROM reservations WHERE id = @Id`);
 
       if (resResult.recordset.length === 0) {
         await tx.rollback();
@@ -292,6 +276,8 @@ const Reservation = {
       }
 
       const spotId = resResult.recordset[0].spot_id;
+      const start = new Date(resResult.recordset[0].start_time);
+      const end = new Date(resResult.recordset[0].end_time);
 
       // fshije rezervimin
       request = new sql.Request(tx);
@@ -299,15 +285,18 @@ const Reservation = {
         .input("Id", sql.Int, id)
         .query(`DELETE FROM reservations WHERE id = @Id`);
 
-      // liroje vendin
-      request = new sql.Request(tx);
-      await request
-        .input("spot_id", sql.Int, spotId)
-        .query(`
-          UPDATE ParkingSpots
-          SET status = 'free'
-          WHERE id = @spot_id
-        `);
+      // liroje vendin vetëm nëse rezervimi ishte aktiv tani
+      const now = new Date();
+      if (start <= now && end >= now) {
+        request = new sql.Request(tx);
+        await request
+          .input("spot_id", sql.Int, spotId)
+          .query(`
+            UPDATE ParkingSpots
+            SET status = 'free'
+            WHERE id = @spot_id
+          `);
+      }
 
       await tx.commit();
       return true;

@@ -13,12 +13,22 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      "/api/users": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+        secure: false,
+      },
       "/api/parkings": {
         target: "http://localhost:3002",
         changeOrigin: true,
         secure: false,
       },
       "/api/spots": {
+        target: "http://localhost:3002",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/api/dashboard": {
         target: "http://localhost:3002",
         changeOrigin: true,
         secure: false,

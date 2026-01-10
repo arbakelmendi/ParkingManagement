@@ -1,0 +1,15 @@
+USE parking_auth;
+GO
+
+IF OBJECT_ID('dbo.users', 'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.users (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    name NVARCHAR(100) NOT NULL,
+    email NVARCHAR(120) NOT NULL UNIQUE,
+    password_hash NVARCHAR(255) NOT NULL,
+    role NVARCHAR(20) NOT NULL DEFAULT 'user',
+    created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+  );
+END
+GO

@@ -3,12 +3,11 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import {
   createParking,
   deleteParking,
-  getParkingAdminStats,
   getParkingSpots,
   getParkings,
   updateParking
 } from "../api/parking.js";
-import { getReservationAdminStats } from "../api/reservation.js";
+import { getDashboardStats } from "../api/dashboard.js";
 import { createSpot, deleteSpot, updateSpot } from "../api/spot.js";
 
 export default function Dashboard() {
@@ -52,22 +51,19 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     try {
-      const [parkingData, reservationData] = await Promise.all([
-        getParkingAdminStats(token),
-        getReservationAdminStats(token),
-      ]);
+      const data = await getDashboardStats(token);
 
       setParkingStats({
-        totalParkings: Number(parkingData?.totalParkings ?? 0),
-        totalSpots: Number(parkingData?.totalSpots ?? 0),
-        freeSpots: Number(parkingData?.freeSpots ?? 0),
-        occupiedSpots: Number(parkingData?.occupiedSpots ?? 0),
+        totalParkings: Number(data?.totalParkings ?? 0),
+        totalSpots: Number(data?.totalSpots ?? 0),
+        freeSpots: Number(data?.freeSpots ?? 0),
+        occupiedSpots: Number(data?.occupiedSpots ?? 0),
       });
 
       setReservationStats({
-        totalReservations: Number(reservationData?.totalReservations ?? 0),
-        activeReservations: Number(reservationData?.activeReservations ?? 0),
-        reservationsToday: Number(reservationData?.reservationsToday ?? 0),
+        totalReservations: Number(data?.totalReservations ?? 0),
+        activeReservations: Number(data?.activeReservations ?? 0),
+        reservationsToday: Number(data?.reservationsToday ?? 0),
       });
     } catch (e) {
       console.error(e);
@@ -232,6 +228,7 @@ export default function Dashboard() {
       setErr(e.message || "Failed to update spot.");
     }
   };
+
 
   if (!isAdmin) {
     return (
@@ -453,6 +450,7 @@ export default function Dashboard() {
           </>
         )}
       </section>
+
     </div>
   );
 }

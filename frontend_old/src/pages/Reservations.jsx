@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext.jsx";
-import { createReservation, deleteReservation, getReservations } from "../api/reservation.js";
+import { createReservation, deleteReservation, getAllReservations, getMyReservations } from "../api/reservation.js";
 import { getParkings, getParkingSpots } from "../api/parking.js";
 
 export default function Reservations() {
   const { token, user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [reservations, setReservations] = useState([]);
   const [parkings, setParkings] = useState([]);
   const [err, setErr] = useState("");
@@ -19,8 +20,9 @@ export default function Reservations() {
   const load = async () => {
     setErr("");
     try {
+      const isAdmin = user?.role === "admin";
       const [r, p] = await Promise.all([
-        getReservations(token).catch(() => []),
+        (isAdmin ? getAllReservations(token) : getMyReservations(token)).catch(() => []),
         getParkings(token).catch(() => [])
       ]);
       setReservations(Array.isArray(r) ? r : (r?.data || []));
@@ -184,7 +186,8 @@ export default function Reservations() {
             ) : (
               <div style={{ display: "grid", gap: "16px" }}>
                 {reservations.map((r) => {
-                  const isFuture = new Date(r.endTime || r.end_time) > new Date();
+                    const isFuture = new Date(r.endTime || r.end_time) > new Date();
+                    const isOwner = Number(r.user_id ?? r.userId) === Number(user?.id);
                   return (
                     <div
                       key={r.id}
@@ -210,9 +213,14 @@ export default function Reservations() {
                         <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
                           Parking ID: {r.ParkingId ?? r.parkingIds} • {new Date(r.startTime ?? r.start_time).toLocaleString()}
                         </span>
+                        {isAdmin && (
+                          <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                            User ID: {r.user_id}
+                          </span>
+                        )}
                       </div>
 
-                      {Number(r.user_id ?? r.userId) === Number(user?.id) && (
+                      {(isAdmin || isOwner) && (
                         <button
                           onClick={() => onDelete(r.id)}
                           style={{

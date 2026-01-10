@@ -1,4 +1,33 @@
 services:
+  db-migrate:
+    image: mcr.microsoft.com/mssql-tools
+    depends_on:
+      - sqlserver
+    environment:
+      SA_PASSWORD: "YourStrong!Passw0rd"
+    volumes:
+      - ./db/migrations:/migrations
+    command: >
+      bash -c "
+      echo 'Waiting for SQL Server...';
+      until /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -Q 'SELECT 1' > /dev/null 2>&1; do
+        echo '...still waiting';
+        sleep 2;
+      done;
+
+      echo 'SQL Server ready. Running migrations...';
+
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -i /migrations/001_create_databases.sql &&
+
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -d parking_auth -i /migrations/002_auth_tables.sql &&
+
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -d parking_management -i /migrations/003_parking_tables.sql &&
+
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P \"$SA_PASSWORD\" -C -d parking_management -i /migrations/004_reservation_tables.sql;
+
+      echo 'Migrations finished.';
+      "
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
     environment:
@@ -12,18 +41,123 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"    # host access
-      - "29092:29092"  # docker network access
+      - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092"
       KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pm-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"YourStrong!Passw0rd\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+    container_name: pm-auth
+    environment:
+      PORT: 3001
+      JWT_SECRET: auth_super_secret_key_123
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: parking_auth
+      DB_USER: sa
+      DB_PASSWORD: "YourStrong!Passw0rd"
+      DB_ENCRYPT: "false"
+      DB_TRUST_CERT: "true"
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: parking-events
+    ports:
+      - "3005:3001"
+    depends_on:
+      - sqlserver
+      - kafka
+      - db-migrate
+
+  parking-service:
+    build:
+      context: ./services/parking-service
+    container_name: pm-parking
+    environment:
+      PORT: 3002
+      JWT_SECRET: auth_super_secret_key_123
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: parking_management
+      DB_USER: sa
+      DB_PASSWORD: "YourStrong!Passw0rd"
+      DB_ENCRYPT: "false"
+      DB_TRUST_CERT: "true"
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: parking-events
+    ports:
+      - "3002:3002"
+    depends_on:
+      - sqlserver
+      - kafka
+      - db-migrate
+
+  reservation-service:
+    build:
+      context: ./services/reservation-service
+    container_name: pm-reservation
+    environment:
+      PORT: 3003
+      JWT_SECRET: auth_super_secret_key_123
+      DB_SERVER: sqlserver
+      DB_PORT: 1433
+      DB_NAME: parking_management
+      DB_USER: sa
+      DB_PASSWORD: "YourStrong!Passw0rd"
+      DB_ENCRYPT: "false"
+      DB_TRUST_CERT: "true"
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC: parking-events
+    ports:
+      - "3003:3003"
+    depends_on:
+      - sqlserver
+      - kafka
+      - db-migrate
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pm-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_AUTH_URL: "http://localhost:3005"
+      VITE_PARKING_URL: "http://localhost:3002"
+      VITE_RESERVATION_URL: "http://localhost:3003"
+    depends_on:
+      - auth-service
+      - parking-service
+      - reservation-service
+
+volumes:
+  sql_data:
