@@ -8,6 +8,15 @@ const helmet = require("helmet");
 const { poolConnect } = require("./config/db");
 const { producer, enabled: kafkaEnabled } = require("./config/kafka");
 
+console.log(
+  "[startup] env KAFKA_ENABLED=",
+  process.env.KAFKA_ENABLED,
+  "KAFKA_BROKERS=",
+  process.env.KAFKA_BROKERS,
+  "KAFKA_TOPIC=",
+  process.env.KAFKA_TOPIC
+);
+
 const reservationRoutes = require("./routes/reservationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 
@@ -70,7 +79,7 @@ app.get("/api/test-kafka", async (req, res) => {
 
     // nëse s’është enabled, mos provo fare
     if (!kafkaEnabled) {
-      return res.json({ ok: true, kafkaEnabled: false, sent: null });
+      return res.json({ ok: true, kafkaEnabled, sent: null });
     }
 
     await producer.send({
@@ -78,6 +87,7 @@ app.get("/api/test-kafka", async (req, res) => {
       messages: [{ value: JSON.stringify(message) }],
     });
 
+    console.log("📨 Published TestMessage to", process.env.KAFKA_TOPIC || "parking-events");
     res.json({ ok: true, kafkaEnabled: true, sent: message });
   } catch (err) {
     console.error("Kafka test failed:", err);
@@ -124,25 +134,16 @@ async function start() {
 
   // Kafka (opsionale)
   if (kafkaEnabled) {
+    console.log("✅ Kafka enabled");
     try {
       await producer.connect();
       console.log("✅ Kafka producer connected");
     } catch (err) {
-      console.error("⚠️ Kafka connection failed (continuing without Kafka):", err.message);
+      console.warn("⚠️ Kafka connection failed (continuing without Kafka):", err.message);
       // mos e ndal service-in
     }
   } else {
-    // ✅ Kafka enabled flag (env vars are strings!)
-    const kafkaEnabled =
-      String(process.env.KAFKA_ENABLED ?? "true").trim().toLowerCase() === "true";
-
-    if (!kafkaEnabled) {
-      console.log("ℹ️ Kafka disabled (KAFKA_ENABLED=false)");
-    } else {
-      console.log("✅ Kafka enabled (KAFKA_ENABLED=true)");
-      // këtu thirre initKafka / startProducer / startConsumer (çka e keni në kod)
-    }
-
+    console.log("ℹ️ Kafka disabled (KAFKA_ENABLED=false)");
   }
 
   app.listen(PORT, () => {
@@ -151,3 +152,28 @@ async function start() {
 }
 
 start();
+
+async function shutdown(signal) {
+  try {
+    if (kafkaEnabled) {
+      await producer.disconnect();
+    }
+  } catch (err) {
+    console.warn("⚠️ Kafka disconnect failed:", err.message);
+  } finally {
+    console.log(`Shutting down (${signal})`);
+    process.exit(0);
+  }
+}
+
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+/*
+How to test (Kafka events)
+1. docker compose up -d --build
+2. docker exec -it parkingmanagement-kafka-1 bash
+3. kafka-console-consumer --bootstrap-server kafka:29092 --topic parking-events --from-beginning
+4. Create a reservation in the frontend
+5. Verify the JSON event appears in the consumer
+*/

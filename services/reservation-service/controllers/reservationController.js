@@ -2,6 +2,7 @@
 
 
 const Reservation = require("../models/reservationModel");
+const { producer, enabled: kafkaEnabled } = require("../config/kafka");
 
 async function getMyReservations(req, res, next) {
   try {
@@ -46,6 +47,13 @@ const isValidationError = (message) => {
     text.includes("positive") ||
     text.includes("jetë")
   );
+};
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return String(value);
+  return date.toISOString();
 };
 
 async function createReservation(req, res, next) {
@@ -103,6 +111,36 @@ async function createReservation(req, res, next) {
       start_time: startTime,
       end_time: endTime,
     });
+
+    if (kafkaEnabled) {
+      const topic = process.env.KAFKA_TOPIC || "parking-events";
+      const reservationIdRaw =
+        created?.id ?? created?.Id ?? created?.reservation_id ?? created?.reservationId;
+      const parkingIdRaw =
+        created?.ParkingId ?? created?.parking_id ?? body.parking_id ?? body.parkingId;
+
+      const reservationEvent = {
+        type: "reservation_created",
+        reservationId: Number.isFinite(Number(reservationIdRaw)) ? Number(reservationIdRaw) : null,
+        userId: Number.isFinite(Number(userId)) ? Number(userId) : null,
+        spotId: Number.isFinite(Number(spotId)) ? Number(spotId) : null,
+        parkingId: Number.isFinite(Number(parkingIdRaw)) ? Number(parkingIdRaw) : null,
+        startTime: toIsoOrNull(created?.start_time ?? startTime),
+        endTime: toIsoOrNull(created?.end_time ?? endTime),
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        await producer.send({
+          topic,
+          messages: [{ value: JSON.stringify(reservationEvent) }],
+        });
+        console.log(`📨 Published reservation_created to ${topic}`);
+      } catch (err) {
+        console.warn("⚠️ Kafka publish failed, continuing:", err.message || err);
+      }
+    }
+
     res.status(201).json(created);
   } catch (err) {
     if (isConflictError(err?.message)) {
