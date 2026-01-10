@@ -34,6 +34,16 @@ async function createReservation(req, res, next) {
       end_time: body.end_time ?? body.endTime ?? body.EndTime,
     };
 
+    const hasOverlap = await Reservation.hasOverlap(
+      data.spot_id,
+      data.start_time,
+      data.end_time
+    );
+
+    if (hasOverlap) {
+      return res.status(409).json({ message: "Spot already reserved for that time range" });
+    }
+
     const created = await Reservation.create(data);
     res.status(201).json(created);
   } catch (err) {
@@ -45,6 +55,19 @@ async function createReservation(req, res, next) {
 async function deleteReservation(req, res, next) {
   try {
     const id = Number(req.params.id);
+    const reservation = await Reservation.getById(id);
+
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    const isAdmin = req.user?.role === "admin";
+    const isOwner = Number(reservation.user_id) === Number(req.user?.id);
+
+    if (!isAdmin && !isOwner) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const ok = await Reservation.delete(id);
 
     if (!ok) {

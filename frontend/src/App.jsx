@@ -7,6 +7,7 @@ import Parkings from "./pages/Parkings.jsx";
 import ParkingDetails from "./pages/ParkingDetails.jsx";
 import Reservations from "./pages/Reservations.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
+import AdminRoute from "./auth/AdminRoute.jsx";
 import Layout from "./components/Layout.jsx";
 
 import { useAuth } from "./auth/AuthContext.jsx";
@@ -37,7 +38,14 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/dashboard"
+          element={
+            <AdminRoute>
+              <Dashboard />
+            </AdminRoute>
+          }
+        />
         <Route path="/parkings" element={<Parkings />} />
         <Route path="/parkings/:id" element={<ParkingDetails />} />
         <Route path="/reservations" element={<Reservations />} />

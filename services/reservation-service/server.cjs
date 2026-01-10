@@ -9,6 +9,7 @@ const { poolConnect } = require("./config/db");
 const { producer, enabled: kafkaEnabled } = require("./config/kafka");
 
 const reservationRoutes = require("./routes/reservationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 console.log("RESERVATION SERVICE BUILD:", "2026-01-10 A", __filename);
@@ -25,7 +26,7 @@ app.use(
 
 app.use(
   cors({
-    origin: true,
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
   })
 );
@@ -45,6 +46,7 @@ app.get("/health", (req, res) => {
 
 // --- API ---
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // --- test DB ---
 app.get("/test-db", async (req, res) => {

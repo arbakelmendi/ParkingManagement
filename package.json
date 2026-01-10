@@ -6,6 +6,8 @@
     "doc": "docs"
   },
   "scripts": {
+    "check": "node scripts/check.mjs",
+    "dev": "concurrently \"npm --prefix services/auth-service start\" \"npm --prefix services/parking-service start\" \"npm --prefix services/reservation-service start\" \"npm --prefix frontend run dev\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -24,5 +26,8 @@
     "dotenv": "^17.2.3",
     "kafkajs": "^2.2.4",
     "mssql": "^12.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }

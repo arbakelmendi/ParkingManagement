@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch } from "../api/http";
+import { createParking, getParkings } from "../api/parking";
 import { useAuth } from "../auth/AuthContext";
 
 export default function Parkings() {
@@ -17,7 +17,7 @@ export default function Parkings() {
   const { token, user } = useAuth(); // Need 'user' to check role
 
   const loadParkings = () => {
-    apiFetch("http://localhost:3002/api/parkings", { token })
+    getParkings(token)
       .then(setParkings)
       .catch(() => setError("Server Error"));
   };
@@ -42,7 +42,7 @@ export default function Parkings() {
         occupied: 0
       };
 
-      await import("../api/parking").then(mod => mod.createParking(token, payload));
+      await createParking(token, payload);
 
       setShowCreate(false);
       setNewName("");
