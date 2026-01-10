@@ -14,9 +14,9 @@ router.get("/", requireAuth, controller.getMyReservations);
 router.get("/all", requireAuth, requireRole("admin"), controller.getAllReservations);
 
 // create (user ose admin)
-router.post("/", controller.createReservation);
+router.post("/", requireAuth, controller.createReservation);
 
-// delete (admin) - opsionale
-router.delete("/:id", requireAuth, requireRole("admin"), controller.deleteReservation);
+// delete (admin or owner)
+router.delete("/:id", requireAuth, controller.deleteReservation);
 
 module.exports = router;

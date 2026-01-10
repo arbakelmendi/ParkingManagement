@@ -212,19 +212,21 @@ export default function Reservations() {
                         </span>
                       </div>
 
-                      <button
-                        onClick={() => onDelete(r.id)}
-                        style={{
-                          backgroundColor: "transparent",
-                          color: "var(--status-error)",
-                          border: "1px solid rgba(239, 68, 68, 0.2)",
-                          padding: "8px 16px",
-                          fontSize: "0.85rem",
-                          boxShadow: "none"
-                        }}
-                      >
-                        Cancel
-                      </button>
+                      {Number(r.user_id ?? r.userId) === Number(user?.id) && (
+                        <button
+                          onClick={() => onDelete(r.id)}
+                          style={{
+                            backgroundColor: "transparent",
+                            color: "var(--status-error)",
+                            border: "1px solid rgba(239, 68, 68, 0.2)",
+                            padding: "8px 16px",
+                            fontSize: "0.85rem",
+                            boxShadow: "none"
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   );
                 })}

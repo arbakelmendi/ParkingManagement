@@ -2,6 +2,23 @@
 const { sql, pool, poolConnect } = require("../config/db");
 
 const Reservation = {
+  // Check if a spot has overlapping reservations
+  hasOverlap: async (spot_id, start_time, end_time) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("spot_id", sql.Int, spot_id)
+      .input("start_time", sql.DateTime2, new Date(start_time))
+      .input("end_time", sql.DateTime2, new Date(end_time))
+      .query(`
+        SELECT COUNT(*) AS cnt
+        FROM reservations
+        WHERE spot_id = @spot_id
+          AND @start_time < end_time
+          AND @end_time > start_time
+      `);
+    return (result.recordset[0]?.cnt || 0) > 0;
+  },
   // GET /api/reservations
   getAll: async () => {
     await poolConnect;

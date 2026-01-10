@@ -1,19 +1,21 @@
 import { apiFetch } from "./http.js";
 
-const BASE = import.meta.env.VITE_RESERVATION_URL;
-
 export function getReservations(token) {
-  return apiFetch(`${BASE}/api/reservations`, { token });
+  return apiFetch("/api/reservations", { token });
 }
 
 export function getAllReservations(token) {
-  return apiFetch(`${BASE}/api/reservations/all`, { token });
+  return apiFetch("/api/reservations/all", { token });
 }
 
 export function createReservation(token, payload) {
-  return apiFetch(`${BASE}/api/reservations`, { method: "POST", token, body: payload });
+  return apiFetch("/api/reservations", { method: "POST", token, body: payload });
+}
+
+export function getReservationAdminStats(token) {
+  return apiFetch("/api/admin/stats", { token });
 }
 
 export function deleteReservation(token, id) {
-  return apiFetch(`${BASE}/api/reservations/${id}`, { method: "DELETE", token });
+  return apiFetch(`/api/reservations/${id}`, { method: "DELETE", token });
 }
