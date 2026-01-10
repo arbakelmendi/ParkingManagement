@@ -37,6 +37,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// FIX: Explicit route to ensure spots endpoints work if router fails
+const parkingController = require("./controllers/parkingController");
+app.get("/api/parkings/:id/spots", parkingController.getParkingSpots);
+
 app.use("/api/parkings", parkingRoutes);
 app.use("/api/spots", spotRoutes);
 

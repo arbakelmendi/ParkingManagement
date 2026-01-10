@@ -18,15 +18,17 @@ const dbConfig = {
   }
 };
 
-const poolPromise = new sql.ConnectionPool(dbConfig)
+const pool = new sql.ConnectionPool(dbConfig);
+
+const poolConnect = pool
   .connect()
-  .then(pool => {
+  .then((p) => {
     console.log("✅ DB pool connected");
-    return pool;
+    return p;
   })
-  .catch(err => {
+  .catch((err) => {
     console.error("❌ DB pool failed:", err);
     throw err;
   });
 
-module.exports = { sql, poolPromise };
+module.exports = { sql, pool, poolConnect };

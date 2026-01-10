@@ -4,6 +4,7 @@ const controller = require("../controllers/parkingController");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 router.get("/", controller.getAllParkings);
+router.get("/:id/spots", controller.getParkingSpots);
 router.get("/:id", controller.getParking);
 
 

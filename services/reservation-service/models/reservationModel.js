@@ -11,6 +11,7 @@ const Reservation = {
              u.name AS user_name,
              r.spot_id,
              ps.spot_number,
+             ps.ParkingId,
              r.start_time,
              r.end_time
       FROM reservations r
@@ -33,6 +34,7 @@ const Reservation = {
                u.name AS user_name,
                r.spot_id,
                ps.spot_number,
+               ps.ParkingId,
                r.start_time,
                r.end_time
         FROM reservations r
@@ -44,143 +46,136 @@ const Reservation = {
     return result.recordset[0] || null;
   },
 
-// GET reservations by user (pa join, safe)
-getByUser: async (user_id) => {
-  await poolConnect;
-  const result = await pool
-    .request()
-    .input("user_id", sql.Int, user_id)
-    .query(`
-      SELECT id, user_id, spot_id, start_time, end_time
-      FROM reservations
-      WHERE user_id = @user_id
-      ORDER BY id DESC
-    `);
-  return result.recordset;
-},
-
-
-// backend/models/reservationModel.js (vetëm create e re)
-create: async (data) => {
-  await poolConnect;
-
-  const { user_id, spot_id, start_time, end_time } = data;
-
-// ✅ user_id vjen nga controller (JWT), prapë e validon por tash s’duhet me mungua
-if (!user_id || !spot_id || !start_time || !end_time) {
-  throw new Error("Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme.");
-}
-
-  const start = new Date(start_time);
-  const end = new Date(end_time);
-
-  if (isNaN(start) || isNaN(end)) {
-    throw new Error("Formati i datës/ores nuk është i vlefshëm.");
-  }
-
-  if (start >= end) {
-    throw new Error("start_time duhet të jetë më i hershëm se end_time.");
-  }
-
-  const diffHours = (end - start) / (1000 * 60 * 60);
-  if (diffHours > 8) {
-    throw new Error("Rezervimi nuk mund të jetë më i gjatë se 8 orë.");
-  }
-
-  const tx = new sql.Transaction(pool);
-
-  try {
-    await tx.begin();
-
-    // 1) verifiko user
-    let request = new sql.Request(tx);
-    const userResult = await request
+  // GET reservations by user (pa join, safe)
+  getByUser: async (user_id) => {
+    await poolConnect;
+    const result = await pool
+      .request()
       .input("user_id", sql.Int, user_id)
-      .query(`SELECT id, role FROM users WHERE id = @user_id`);
-
-    if (userResult.recordset.length === 0) {
-      throw new Error("Përdoruesi nuk ekziston.");
-    }
-
-    // 2) verifiko spot
-    request = new sql.Request(tx);
-    const spotResult = await request
-      .input("spot_id", sql.Int, spot_id)
-      .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
-
-    if (spotResult.recordset.length === 0) {
-      throw new Error("Parking spot nuk ekziston.");
-    }
-
-    const spotStatus = spotResult.recordset[0].status;
-    if (spotStatus !== "free") {
-      throw new Error("Ky vend parkimi është i zënë.");
-    }
-
-    // 3) kontrollo mbivendosje
-    request = new sql.Request(tx);
-    const overlapResult = await request
-      .input("spot_id", sql.Int, spot_id)
-      .input("start_time", sql.DateTime2, start)
-      .input("end_time", sql.DateTime2, end)
       .query(`
+      SELECT r.id, r.user_id, r.spot_id,
+             ps.spot_number,
+             ps.ParkingId,
+             r.start_time, r.end_time
+      FROM reservations r
+      JOIN ParkingSpots ps ON ps.id = r.spot_id
+      WHERE r.user_id = @user_id
+      ORDER BY r.id DESC
+    `);
+    return result.recordset;
+  },
+
+
+  // backend/models/reservationModel.js (vetëm create e re)
+  create: async (data) => {
+    await poolConnect;
+
+    const { user_id, spot_id, start_time, end_time } = data;
+
+    // ✅ user_id vjen nga controller (JWT), prapë e validon por tash s’duhet me mungua
+    if (!user_id || !spot_id || !start_time || !end_time) {
+      throw new Error("Të gjitha fushat (user_id, spot_id, start_time, end_time) janë të detyrueshme.");
+    }
+
+    const start = new Date(start_time);
+    const end = new Date(end_time);
+
+    if (isNaN(start) || isNaN(end)) {
+      throw new Error("Formati i datës/ores nuk është i vlefshëm.");
+    }
+
+    if (start >= end) {
+      throw new Error("start_time duhet të jetë më i hershëm se end_time.");
+    }
+
+    const diffHours = (end - start) / (1000 * 60 * 60);
+    if (diffHours > 8) {
+      throw new Error("Rezervimi nuk mund të jetë më i gjatë se 8 orë.");
+    }
+
+    const tx = new sql.Transaction(pool);
+
+    try {
+      await tx.begin();
+
+      // 1) verifiko user
+      let request = new sql.Request(tx);
+      const userResult = await request
+        .input("user_id", sql.Int, user_id)
+        .query(`SELECT id, role FROM users WHERE id = @user_id`);
+
+      if (userResult.recordset.length === 0) {
+        throw new Error("Përdoruesi nuk ekziston.");
+      }
+
+      // 2) verifiko spot
+      request = new sql.Request(tx);
+      const spotResult = await request
+        .input("spot_id", sql.Int, spot_id)
+        .query(`SELECT id, status FROM ParkingSpots WHERE id = @spot_id`);
+
+      if (spotResult.recordset.length === 0) {
+        throw new Error("Parking spot nuk ekziston.");
+      }
+
+      const spotStatus = spotResult.recordset[0].status;
+      if (spotStatus !== "free") {
+        throw new Error("Ky vend parkimi është i zënë.");
+      }
+
+      // 3) kontrollo mbivendosje
+      request = new sql.Request(tx);
+      const overlapResult = await request
+        .input("spot_id", sql.Int, spot_id)
+        .input("start_time", sql.DateTime2, start)
+        .input("end_time", sql.DateTime2, end)
+        .query(`
         SELECT COUNT(*) AS cnt
         FROM reservations
         WHERE spot_id = @spot_id
           AND NOT (end_time <= @start_time OR start_time >= @end_time)
       `);
 
-    if (overlapResult.recordset[0].cnt > 0) {
-      throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
-    }
+      if (overlapResult.recordset[0].cnt > 0) {
+        throw new Error("Ky vend tashmë është i rezervuar në këtë orar.");
+      }
 
-    // 4) mos lejo më shumë se 1 rezervim aktiv (strict)
-    request = new sql.Request(tx);
-    const activeResult = await request
-      .input("user_id", sql.Int, user_id)
-      .query(`
-        SELECT COUNT(*) AS cnt
-        FROM reservations
-        WHERE user_id = @user_id
-          AND end_time > GETDATE()
-      `);
+      // 4) mos lejo më shumë se 1 rezervim aktiv (strict)
+      // 4) Check removed: We now allow multiple reservations per user (overlap check still applies)
+      // The strict "one active reservation" rule was preventing users from booking future slots.
 
-    if (activeResult.recordset[0].cnt > 0) {
-      throw new Error("Përdoruesi ka tashmë rezervim aktiv.");
-    }
-
-    // 5) insert reservation
-    request = new sql.Request(tx);
-    const insertResult = await request
-      .input("user_id", sql.Int, user_id)
-      .input("spot_id", sql.Int, spot_id)
-      .input("start_time", sql.DateTime2, start)
-      .input("end_time", sql.DateTime2, end)
-      .query(`
+      // 5) insert reservation
+      request = new sql.Request(tx);
+      const insertResult = await request
+        .input("user_id", sql.Int, user_id)
+        .input("spot_id", sql.Int, spot_id)
+        .input("start_time", sql.DateTime2, start)
+        .input("end_time", sql.DateTime2, end)
+        .query(`
         INSERT INTO reservations (user_id, spot_id, start_time, end_time)
         OUTPUT INSERTED.*
         VALUES (@user_id, @spot_id, @start_time, @end_time)
       `);
 
-    const created = insertResult.recordset[0];
+      const created = insertResult.recordset[0];
 
-    // 6) bëje spot occupied
-    request = new sql.Request(tx);
-    await request
-      .input("spot_id", sql.Int, spot_id)
-      .query(`
+      // 6) bëje spot occupied
+      request = new sql.Request(tx);
+      await request
+        .input("spot_id", sql.Int, spot_id)
+        .query(`
         UPDATE ParkingSpots
         SET status = 'occupied'
         WHERE id = @spot_id
       `);
 
-    await tx.commit();
-    return created;
-  } catch (err) {
-    await tx.rollback();
-    throw err;
-  }
-},
+      await tx.commit();
+      return created;
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    }
+  },
 
 
   // PUT /api/reservations/:id

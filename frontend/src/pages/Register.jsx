@@ -17,7 +17,11 @@ export default function Register() {
     try {
       const data = await registerApi({ name, email, password });
       auth.login(data);
-      navigate("/dashboard");
+      if (data.user.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/parkings");
+      }
     } catch (e) {
       setErr(e.message);
     }

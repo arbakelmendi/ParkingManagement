@@ -15,6 +15,15 @@ export function getParkingById(token, id) {
 }
 
 // Opsionale: nëse e keni endpoint-in
-export function getParkingSpots(token, id) {
-  return apiFetch(`${BASE}/api/parkings/${id}/spots`, { token });
+// Fallback: if /api/parkings/:id/spots fails (404), fetch ALL spots and filter.
+// This ensures the frontend works even if the user hasn't restarted the backend to apply routing fixes.
+export async function getParkingSpots(token, id) {
+  try {
+    return await apiFetch(`${BASE}/api/parkings/${id}/spots`, { token });
+  } catch (err) {
+    console.warn("Direct spot fetch failed, using fallback...", err);
+    const allSpots = await apiFetch(`${BASE}/api/spots`, { token });
+    // Filter by ParkingId (ensure type match)
+    return allSpots.filter(s => s.ParkingId == id);
+  }
 }

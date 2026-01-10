@@ -26,19 +26,19 @@ const Spot = {
   },
 
   create: async (data) => {
-  await poolConnect;
-  const result = await pool
-    .request()
-    .input("SpotNumber", sql.Int, data.spot_number)
-    .input("Status", sql.NVarChar(20), data.status || "free")
-    .input("ParkingId", sql.Int, data.ParkingId) // ✅ FK
-    .query(`
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("SpotNumber", sql.Int, data.spot_number)
+      .input("Status", sql.NVarChar(20), data.status || "free")
+      .input("ParkingId", sql.Int, data.ParkingId) // ✅ FK
+      .query(`
       INSERT INTO ParkingSpots (spot_number, status, ParkingId)
       OUTPUT INSERTED.*
       VALUES (@SpotNumber, @Status, @ParkingId)
     `);
-  return result.recordset[0];
-},
+    return result.recordset[0];
+  },
 
   update: async (id, data) => {
     await poolConnect;
@@ -85,6 +85,20 @@ const Spot = {
         WHERE id = @Id
       `);
     return result.recordset[0] || null;
+  },
+
+  getByParkingId: async (parkingId) => {
+    await poolConnect;
+    const result = await pool
+      .request()
+      .input("ParkingId", sql.Int, parkingId)
+      .query(`
+        SELECT id, spot_number, status, ParkingId
+        FROM ParkingSpots
+        WHERE ParkingId = @ParkingId
+        ORDER BY spot_number ASC
+      `);
+    return result.recordset;
   },
 };
 

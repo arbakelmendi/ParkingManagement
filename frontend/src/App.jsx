@@ -9,10 +9,23 @@ import Reservations from "./pages/Reservations.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute.jsx";
 import Layout from "./components/Layout.jsx";
 
+import { useAuth } from "./auth/AuthContext.jsx";
+
+function RoleBasedRedirect() {
+  const { user, isAuthed } = useAuth();
+
+  if (!isAuthed) return <Navigate to="/login" replace />;
+
+  if (user?.role === "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <Navigate to="/parkings" replace />;
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<RoleBasedRedirect />} />
 
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />

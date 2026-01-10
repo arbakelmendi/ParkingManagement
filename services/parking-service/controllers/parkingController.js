@@ -119,10 +119,23 @@ async function deleteParking(req, res) {
   }
 }
 
+// GET /api/parkings/:id/spots
+async function getParkingSpots(req, res) {
+  try {
+    const Spot = require("../models/spotModel");
+    const spots = await Spot.getByParkingId(req.params.id);
+    res.json(spots);
+  } catch (err) {
+    console.error("getParkingSpots error:", err);
+    res.status(500).json({ error: "Server Error" });
+  }
+}
+
 module.exports = {
   getAllParkings,
   getParking,
   createParking,
   updateParking,
   deleteParking,
+  getParkingSpots,
 };

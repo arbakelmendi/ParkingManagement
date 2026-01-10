@@ -16,7 +16,12 @@ export default function Login() {
     try {
       const data = await loginApi({ email, password });
       auth.login(data);
-      navigate("/dashboard");
+      // Redirect based on role
+      if (data.user.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/parkings");
+      }
     } catch (e) {
       setErr(e.message);
     }

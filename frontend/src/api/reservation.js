@@ -6,6 +6,10 @@ export function getReservations(token) {
   return apiFetch(`${BASE}/api/reservations`, { token });
 }
 
+export function getAllReservations(token) {
+  return apiFetch(`${BASE}/api/reservations/all`, { token });
+}
+
 export function createReservation(token, payload) {
   return apiFetch(`${BASE}/api/reservations`, { method: "POST", token, body: payload });
 }
