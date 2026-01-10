@@ -16,7 +16,9 @@ async function register(req, res) {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "name, email, password are required" });
+      return res
+        .status(400)
+        .json({ message: "name, email, password are required" });
     }
 
     const existing = await User.findByEmail(email);
@@ -26,17 +28,23 @@ async function register(req, res) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // ✅ IMPORTANT: save into password_hash (NOT password)
     const created = await User.create({
       name,
       email,
-      password: passwordHash,
-      role: "user", // safe default
+      password_hash: passwordHash,
+      role: "user",
     });
 
     const token = signToken(created);
 
     return res.status(201).json({
-      user: { id: created.id, name: created.name, email: created.email, role: created.role },
+      user: {
+        id: created.id,
+        name: created.name,
+        email: created.email,
+        role: created.role,
+      },
       token,
     });
   } catch (err) {
@@ -59,7 +67,8 @@ async function login(req, res) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const ok = await bcrypt.compare(password, user.password);
+    // ✅ IMPORTANT: compare against user.password_hash (NOT user.password)
+    const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -76,7 +85,7 @@ async function login(req, res) {
   }
 }
 
-// GET /api/auth/me (opsionale, nëse e përdor)
+// GET /api/auth/me (opsionale)
 async function me(req, res) {
   return res.json({ user: req.user });
 }

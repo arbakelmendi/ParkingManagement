@@ -1,31 +1,32 @@
-// /config/db.js
+// services/reservation-service/config/db.js
 const sql = require("mssql");
 
-const config = {
+const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER || "localhost",
   database: process.env.DB_NAME,
-  server: process.env.DB_SERVER,
-  port: Number(process.env.DB_PORT) || 1433,
+  port: Number(process.env.DB_PORT || 1433),
   options: {
-    encrypt: false,            // se jemi lokal
-    trustServerCertificate: true,
+    encrypt: false,              // nëse s'ke Azure, false zakonisht
+    trustServerCertificate: true // për local dev
   },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
+  }
 };
 
-// krijimi i connection pool
-const pool = new sql.ConnectionPool(config);
-const poolConnect = pool
+const poolPromise = new sql.ConnectionPool(dbConfig)
   .connect()
-  .then(() => {
-    console.log("Database connected");
+  .then(pool => {
+    console.log("✅ DB pool connected");
+    return pool;
   })
-  .catch((err) => {
-    console.error("Database connection failed:", err);
+  .catch(err => {
+    console.error("❌ DB pool failed:", err);
+    throw err;
   });
 
-module.exports = {
-  sql,
-  pool,
-  poolConnect,
-};
+module.exports = { sql, poolPromise };

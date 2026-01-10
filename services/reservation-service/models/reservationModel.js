@@ -44,6 +44,22 @@ const Reservation = {
     return result.recordset[0] || null;
   },
 
+// GET reservations by user (pa join, safe)
+getByUser: async (user_id) => {
+  await poolConnect;
+  const result = await pool
+    .request()
+    .input("user_id", sql.Int, user_id)
+    .query(`
+      SELECT id, user_id, spot_id, start_time, end_time
+      FROM reservations
+      WHERE user_id = @user_id
+      ORDER BY id DESC
+    `);
+  return result.recordset;
+},
+
+
 // backend/models/reservationModel.js (vetëm create e re)
 create: async (data) => {
   await poolConnect;

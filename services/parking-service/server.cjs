@@ -9,14 +9,69 @@ const { consumer, enabled: kafkaEnabled } = require("./config/kafka");
 
 const app = express();
 
+const parkingRoutes = require("./routes/parkingRoutes");
+const spotRoutes = require("./routes/spotRoutes");
+
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
 app.use((req, res, next) => {
+  console.log("[HIT]", req.method, req.url);
+  next();
+});
+
+
+app.use((req, res, next) => {
+  console.log(`[HIT] ${req.method} ${req.url}`);
+  next();
+});
+
+
+app.get("/api/test", (req, res) => res.json({ ok: true, test: "works" }));
+app.get("/api/test2", (req, res) => res.send("TEST2 OK"));
+
+
+app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
+
+app.use("/api/parkings", parkingRoutes);
+app.use("/api/spots", spotRoutes);
+
+function listRoutes(prefix, router) {
+  console.log(`\n📌 Routes under ${prefix}:`);
+  router.stack.forEach((layer) => {
+    if (layer.route) {
+      const methods = Object.keys(layer.route.methods).join(",").toUpperCase();
+      console.log(`  ${methods.padEnd(6)} ${prefix}${layer.route.path}`);
+    }
+  });
+}
+
+listRoutes("/api/parkings", parkingRoutes);
+listRoutes("/api/spots", spotRoutes);
+
+
+console.log("🔥 RUNNING FILE:", __filename);
+console.log("✅ parkingRoutes type:", typeof parkingRoutes);
+console.log("✅ parkingRoutes stack length:", parkingRoutes?.stack?.length);
+
+console.log("✅ spotRoutes type:", typeof spotRoutes);
+console.log("✅ spotRoutes stack length:", spotRoutes?.stack?.length);
+
+// print all registered routes (simple)
+if (app._router?.stack) {
+  const routers = app._router.stack.filter((l) => l.name === "router");
+  console.log("✅ app routers mounted:", routers.length);
+  routers.forEach((r, i) => {
+    console.log(`  Router[${i}] path=`, r?.regexp?.toString?.() || r?.path);
+  });
+}
+
+
+
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, service: "parking-service" });
