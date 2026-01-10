@@ -1,5 +1,4 @@
 services:
-
   auth-service:
     build: ./services/auth-service
     ports:
@@ -7,7 +6,8 @@ services:
     env_file:
       - ./services/auth-service/.env
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
 
   parking-service:
     build: ./services/parking-service
@@ -16,8 +16,10 @@ services:
     env_file:
       - ./services/parking-service/.env
     depends_on:
-      - kafka
-      - auth-service
+      kafka:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
 
   reservation-service:
     build: ./services/reservation-service
@@ -26,8 +28,10 @@ services:
     env_file:
       - ./services/reservation-service/.env
     depends_on:
-      - kafka
-      - parking-service
+      kafka:
+        condition: service_healthy
+      parking-service:
+        condition: service_started
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.7.0
@@ -42,8 +46,8 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"    # host access
-      - "29092:29092"  # docker network access
+      - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
@@ -57,3 +61,22 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    healthcheck:
+      # Kafka është "healthy" kur porti 29092 është i hapur brenda container-it
+      test: ["CMD-SHELL", "bash -lc 'nc -z localhost 29092'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  init-kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-lc"]
+    command: |
+      echo "Creating topics..." &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic parking-events --partitions 1 --replication-factor 1 &&
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic reservation-events --partitions 1 --replication-factor 1 &&
+      echo "Topics ready."

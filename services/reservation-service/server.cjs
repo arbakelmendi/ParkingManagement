@@ -132,7 +132,17 @@ async function start() {
       // mos e ndal service-in
     }
   } else {
-    console.log("ℹ️ Kafka disabled (KAFKA_ENABLED=false)");
+    // ✅ Kafka enabled flag (env vars are strings!)
+    const kafkaEnabled =
+      String(process.env.KAFKA_ENABLED ?? "true").trim().toLowerCase() === "true";
+
+    if (!kafkaEnabled) {
+      console.log("ℹ️ Kafka disabled (KAFKA_ENABLED=false)");
+    } else {
+      console.log("✅ Kafka enabled (KAFKA_ENABLED=true)");
+      // këtu thirre initKafka / startProducer / startConsumer (çka e keni në kod)
+    }
+
   }
 
   app.listen(PORT, () => {

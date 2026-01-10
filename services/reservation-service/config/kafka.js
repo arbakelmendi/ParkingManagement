@@ -1,14 +1,13 @@
-// services/reservation-service/config/kafka.js
 const { Kafka } = require("kafkajs");
 
-const enabled = String(process.env.KAFKA_ENABLED || "true").toLowerCase() === "true";
+const brokers = (process.env.KAFKA_BROKERS || "kafka:29092")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 const kafka = new Kafka({
   clientId: "parking-management-app",
-  brokers: [(process.env.KAFKA_BROKER || "localhost:9092")],
+  brokers,
 });
 
-const producer = kafka.producer();
-
-module.exports = { producer, enabled };
-
+module.exports = kafka;
